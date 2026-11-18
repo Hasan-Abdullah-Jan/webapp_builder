@@ -17,7 +17,12 @@ const BranchSchema = new Schema(
     phone: { type: String, trim: true, maxlength: 20 },
     geo: { type: PointSchema },
     deliveryZones: { type: PolygonSchema },
+    /** { mon: { open: '11:00', close: '23:00', closed: false }, ... } in the tenant timezone */
     hours: { type: Schema.Types.Mixed, default: {} },
+    deliveryFee: { type: Number, default: 0, min: 0 },
+    minOrder: { type: Number, default: 0, min: 0 },
+    deliveryRadiusKm: { type: Number, default: 0, min: 0 }, // 0 = no radius check
+    prepTimeMins: { type: Number, default: 30, min: 0 },
     isOpen: { type: Boolean, default: true },
   },
   { timestamps: true, collection: 'branches' },

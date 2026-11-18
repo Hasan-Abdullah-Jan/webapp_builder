@@ -1,11 +1,16 @@
 import { getEnv, redactMongoUri } from './config/env';
 import { connectToDatabase, disconnectFromDatabase } from './db/connection';
+import { runAsPlatform } from './db/tenantContext';
+import { seedPlans } from './models';
+import { startNotificationWorker } from './workers/notifications';
 import { createApp } from './app';
 
 async function main() {
   const env = getEnv();
   await connectToDatabase();
   console.log(`[db] connected to ${redactMongoUri(env.MONGODB_URI)} (db: ${env.MONGODB_DB_NAME})`);
+  await runAsPlatform('startup: seed plans', () => seedPlans());
+  startNotificationWorker();
 
   const server = createApp().listen(env.PORT, () => console.log(`[api] listening on :${env.PORT}`));
 

@@ -17,6 +17,10 @@ export interface CrudOptions<C extends z.ZodTypeAny, U extends z.ZodTypeAny> {
   searchFields?: string[];
   /** Fields that may be used as exact-match `?field=value` filters. */
   filterFields?: string[];
+  /** Runs before create (e.g. plan-limit checks). */
+  beforeCreate?: () => Promise<void>;
+  /** Default sort for list(); cursor pagination still uses _id. */
+  sort?: Record<string, 1 | -1>;
 }
 
 export const ListQuerySchema = z.object({
@@ -46,12 +50,24 @@ export function createCrudService<C extends z.ZodTypeAny, U extends z.ZodTypeAny
       for (const f of opts.filterFields ?? []) {
         const v = rawQuery[f];
         if (typeof v === 'string' && v.length <= 200) {
-          filter[f] = isValidObjectId(v) && f.endsWith('Id') ? new Types.ObjectId(v) : v;
+          if (f.endsWith('Id')) {
+            if (!isValidObjectId(v)) continue;
+            filter[f] = new Types.ObjectId(v);
+          } else if (v === 'true' || v === 'false') {
+            filter[f] = v === 'true';
+          } else {
+            filter[f] = v;
+          }
         }
       }
       if (q && opts.searchFields?.length) {
         const rx = new RegExp('^' + escapeRegex(q), 'i');
         filter.$or = opts.searchFields.map((f) => ({ [f]: rx }));
+      }
+      // Sorted lists (e.g. by `sort`) return everything up to the cap; cursor pages use _id.
+      if (opts.sort && !cursor) {
+        const all = await model.find(filter).sort({ ...opts.sort, _id: 1 }).limit(2000).lean();
+        return { items: all, nextCursor: null };
       }
       const items = await model.find(filter).sort({ _id: -1 }).limit(limit + 1).lean();
       const hasMore = items.length > limit;
@@ -69,6 +85,7 @@ export function createCrudService<C extends z.ZodTypeAny, U extends z.ZodTypeAny
     async create(body: unknown) {
       requireTenantId();
       const data = opts.createSchema.parse(body);
+      if (opts.beforeCreate) await opts.beforeCreate();
       const doc = await model.create(data); // plugin stamps tenantId from context
       return doc.toObject();
     },

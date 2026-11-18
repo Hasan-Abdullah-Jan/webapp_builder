@@ -25,7 +25,7 @@ const OrderItemSchema = new Schema(
     variant: String,
     unitPrice: { type: Number, required: true, min: 0 },
     quantity: { type: Number, required: true, min: 1 },
-    modifiers: [{ name: String, price: Number, _id: false }],
+    modifiers: [{ group: String, name: String, price: Number, _id: false }],
     lineTotal: { type: Number, required: true, min: 0 },
   },
   { _id: false },
@@ -52,6 +52,7 @@ const OrderSchema = new Schema(
         status: { type: String, enum: ORDER_STATUSES },
         at: { type: Date, default: Date.now },
         by: { type: Schema.Types.ObjectId, ref: 'User' },
+        reason: { type: String, maxlength: 300 },
         _id: false,
       },
     ],
@@ -62,6 +63,9 @@ const OrderSchema = new Schema(
     },
     riderId: { type: Schema.Types.ObjectId, ref: 'User' },
     idempotencyKey: { type: String, maxlength: 128 },
+    notes: { type: String, maxlength: 500 },
+    /** Random secret in the customer's tracking link; prevents order enumeration. */
+    trackingCode: { type: String, select: false },
   },
   { timestamps: true, collection: 'orders' },
 );

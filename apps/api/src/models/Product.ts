@@ -23,7 +23,7 @@ const ProductSchema = new Schema(
     images: [{ type: String, maxlength: 2048 }],
     basePrice: { type: Number, required: true, min: 0 },
     variants: [VariantSchema],
-    modifierGroupIds: [{ type: Schema.Types.ObjectId }],
+    modifierGroupIds: [{ type: Schema.Types.ObjectId, ref: 'ModifierGroup' }],
     tags: [{ type: String, lowercase: true, trim: true, maxlength: 40 }],
     branchOverrides: [BranchOverrideSchema],
     stock: { type: Number, min: 0 }, // undefined = not tracked

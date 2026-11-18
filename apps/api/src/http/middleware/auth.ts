@@ -1,17 +1,11 @@
 import type { NextFunction, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
 import { isValidObjectId, Types } from 'mongoose';
-import { getEnv } from '../../config/env';
 import { runAsPlatform, runWithTenant } from '../../db/tenantContext';
-import { Role, Tenant, User, type Permission } from '../../models';
+import { PlatformUser, Role, Tenant, User, type Permission, type PlatformRole } from '../../models';
 import { AppError, forbidden } from '../../services/errors';
 import { resolveTenantByHost } from '../../services/tenants';
-
-export interface StaffClaims {
-  sub: string; // userId
-  tid: string; // tenantId
-  typ: 'staff';
-}
+import { signAccess, verifyAccess } from '../../services/tokens';
+import type { StoreTenant } from '../../services/store';
 
 export interface AuthInfo {
   tenantId: Types.ObjectId;
@@ -19,60 +13,56 @@ export interface AuthInfo {
   permissions: Set<string>;
 }
 
+export interface PlatformAuth {
+  userId: Types.ObjectId;
+  role: PlatformRole;
+}
+
 declare module 'express-serve-static-core' {
   interface Request {
     auth?: AuthInfo;
+    platform?: PlatformAuth;
+    store?: StoreTenant & { preview?: boolean };
   }
 }
 
 const unauthorized = () => new AppError(401, 'UNAUTHORIZED', 'Authentication required');
 
-export function signStaffToken(userId: string, tenantId: string, expiresIn: jwt.SignOptions['expiresIn'] = '15m') {
-  return jwt.sign({ tid: tenantId, typ: 'staff' }, getEnv().JWT_SECRET, {
-    algorithm: 'HS256',
-    subject: userId,
-    expiresIn,
-    issuer: 'quickstore-api',
-    audience: 'tenant-admin',
-  });
+/** Test/seed helper: sign a staff access token directly. */
+export function signStaffToken(userId: string, tenantId: string, expiresIn: '15m' | '1h' = '15m') {
+  return signAccess('tenant-admin', userId, { tid: tenantId, typ: 'staff' }, expiresIn);
+}
+
+function bearer(req: Request) {
+  const h = req.headers.authorization;
+  return h?.startsWith('Bearer ') ? h.slice(7) : undefined;
 }
 
 /**
- * Tenant Admin auth. tenantId comes ONLY from the verified token — never from the
- * body, query or a header — and every downstream DB call runs inside that tenant.
+ * Tenant Admin auth. tenantId comes ONLY from the verified token, never from the body,
+ * query or a header. Every downstream DB call runs inside that tenant.
  */
 export function requireStaff(req: Request, _res: Response, next: NextFunction) {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return next(unauthorized());
-
-  let claims: StaffClaims;
+  const token = bearer(req);
+  if (!token) return next(unauthorized());
+  let claims: { sub: string; tid: string; typ: string };
   try {
-    claims = jwt.verify(header.slice(7), getEnv().JWT_SECRET, {
-      algorithms: ['HS256'],
-      issuer: 'quickstore-api',
-      audience: 'tenant-admin',
-    }) as StaffClaims;
+    claims = verifyAccess(token, 'tenant-admin');
   } catch {
     return next(unauthorized());
   }
-  if (claims.typ !== 'staff' || !isValidObjectId(claims.tid) || !isValidObjectId(claims.sub)) {
-    return next(unauthorized());
-  }
+  if (claims.typ !== 'staff' || !isValidObjectId(claims.tid) || !isValidObjectId(claims.sub)) return next(unauthorized());
 
   const tenantId = new Types.ObjectId(claims.tid);
   const userId = new Types.ObjectId(claims.sub);
 
   void runWithTenant({ tenantId, userId }, async () => {
     try {
-      const tenant = await runAsPlatform('auth: tenant status', () =>
-        Tenant.findOne({ _id: tenantId }).select('status').lean(),
-      );
-      if (!tenant || tenant.status === 'suspended' || tenant.status === 'deleted') throw forbidden('Store is not available');
-
+      const tenant = await runAsPlatform('auth: tenant status', () => Tenant.findOne({ _id: tenantId }).select('status').lean());
+      if (!tenant || !['draft', 'active'].includes(tenant.status)) throw forbidden('This store is suspended. Contact support.');
       const user = await User.findOne({ _id: userId, active: true }).select('roleId').lean();
       if (!user) throw unauthorized();
       const role = await Role.findOne({ _id: user.roleId }).select('permissions').lean();
-
       req.auth = { tenantId, userId, permissions: new Set(role?.permissions ?? []) };
       next(); // downstream handlers inherit this async tenant context
     } catch (err) {
@@ -86,16 +76,64 @@ export function requirePermission(...perms: Permission[]) {
     const p = req.auth?.permissions;
     if (!p) return next(unauthorized());
     if (p.has('*') || perms.every((x) => p.has(x))) return next();
-    next(forbidden('Missing permission: ' + perms.join(', ')));
+    next(forbidden("Your role doesn't allow this"));
   };
 }
 
-/** Storefront: tenant resolved from the Host header against the domains collection. */
+/** Super Admin auth: platform token + optional IP allow-list (PLATFORM_IP_ALLOWLIST, comma-separated). */
+export function requirePlatform(...roles: PlatformRole[]) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    const allow = (process.env.PLATFORM_IP_ALLOWLIST ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (allow.length && !allow.includes(req.ip ?? '')) return next(forbidden('Not allowed from this network'));
+    const token = bearer(req);
+    if (!token) return next(unauthorized());
+    let claims: { sub: string; role: PlatformRole; typ: string };
+    try {
+      claims = verifyAccess(token, 'platform');
+    } catch {
+      return next(unauthorized());
+    }
+    if (claims.typ !== 'platform' || !isValidObjectId(claims.sub)) return next(unauthorized());
+    void runAsPlatform('platform staff request', async () => {
+      try {
+        const user = await PlatformUser.findOne({ _id: claims.sub, active: true }).select('role').lean();
+        if (!user) throw unauthorized();
+        if (roles.length && user.role !== 'owner' && !roles.includes(user.role as PlatformRole)) {
+          throw forbidden("Your platform role doesn't allow this");
+        }
+        req.platform = { userId: user._id, role: user.role as PlatformRole };
+        next();
+      } catch (err) {
+        next(err);
+      }
+    });
+  };
+}
+
+/**
+ * Storefront: tenant resolved from the store host (X-Store-Host, set by the storefront server,
+ * else Host) against the domains collection. Store data is public, so trusting the header only
+ * lets a caller read what any visitor to that host could read.
+ * A valid preview token (X-Preview-Token) for the SAME tenant unlocks draft stores and the draft config.
+ */
 export function resolveStorefrontTenant(req: Request, _res: Response, next: NextFunction) {
-  resolveTenantByHost(req.headers.host)
-    .then((tenantId) => {
-      if (!tenantId) throw new AppError(404, 'STORE_NOT_FOUND', 'Store not found');
-      void runWithTenant({ tenantId }, () => next());
+  const host = (req.headers['x-store-host'] as string | undefined) ?? req.headers.host;
+  const previewToken = req.headers['x-preview-token'] as string | undefined;
+  let previewTid: string | undefined;
+  if (previewToken) {
+    try {
+      previewTid = verifyAccess<{ tid: string }>(previewToken, 'preview').tid;
+    } catch {
+      return next(new AppError(401, 'PREVIEW_EXPIRED', 'This preview link has expired'));
+    }
+  }
+  resolveTenantByHost(host, Boolean(previewTid))
+    .then((tenant) => {
+      if (!tenant) throw new AppError(404, 'STORE_NOT_FOUND', 'Store not found');
+      const preview = Boolean(previewTid && String(tenant._id) === previewTid);
+      if (tenant.status !== 'active' && !preview) throw new AppError(404, 'STORE_NOT_FOUND', 'Store not found');
+      req.store = { ...(tenant as unknown as StoreTenant), preview };
+      void runWithTenant({ tenantId: tenant._id as Types.ObjectId }, () => next());
     })
     .catch(next);
 }

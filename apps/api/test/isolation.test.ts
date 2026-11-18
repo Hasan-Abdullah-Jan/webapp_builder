@@ -7,7 +7,7 @@ import { createApp } from '../src/app';
 import { signStaffToken } from '../src/http/middleware/auth';
 import { provisionTenant } from '../src/services/tenants';
 import { runAsPlatform, runWithTenant, TenantScopeError } from '../src/db/tenantContext';
-import { ALL_MODELS, Order, Product, Role, User, Domain, Tenant } from '../src/models';
+import { ALL_MODELS, Order, Product, Role, User, Domain, Tenant, seedPlans } from '../src/models';
 
 // Uses MONGODB_TEST_URI if set (e.g. a local Docker mongo); otherwise an in-memory replica set.
 // Never point this at production: the test database is dropped afterwards.
@@ -26,8 +26,9 @@ beforeAll(async () => {
   await connectToDatabase({ uri, dbName: TEST_DB, autoIndex: false });
   await mongoose.connection.db!.dropDatabase();
   for (const m of ALL_MODELS) await m.syncIndexes();
-  const a = await provisionTenant({ name: 'Pizza A', slug: 'pizza-a', owner: { name: 'Owner A', email: 'a@example.com' } });
-  const b = await provisionTenant({ name: 'Burger B', slug: 'burger-b', owner: { name: 'Owner B', phone: '+923001234567' } });
+  await runAsPlatform('test', () => seedPlans());
+  const a = await provisionTenant({ name: 'Pizza A', slug: 'pizza-a', sampleData: false, owner: { name: 'Owner A', email: 'a@example.com' } });
+  const b = await provisionTenant({ name: 'Burger B', slug: 'burger-b', sampleData: false, owner: { name: 'Owner B', email: 'b@example.com', phone: '+923001234567' } });
   A = { ...a, token: signStaffToken(a.ownerId, a.tenantId) };
   B = { ...b, token: signStaffToken(b.ownerId, b.tenantId) };
 });
@@ -140,13 +141,16 @@ describe('admin API isolation', () => {
   it('full CRUD round-trip with pagination', async () => {
     for (let i = 0; i < 3; i++) {
       await request(app).post('/v1/admin/categories').set(auth(A)).send({ name: `Cat ${i}`, slug: `cat-${i}` }).expect(201);
+      await request(app).post('/v1/admin/customers').set(auth(A)).send({ phone: `+92300123456${i}`, name: `C ${i}` }).expect(201);
     }
-    const p1 = await request(app).get('/v1/admin/categories?limit=2').set(auth(A)).expect(200);
+    const p1 = await request(app).get('/v1/admin/customers?limit=2').set(auth(A)).expect(200);
     expect(p1.body.items).toHaveLength(2);
-    const p2 = await request(app).get(`/v1/admin/categories?limit=2&cursor=${p1.body.nextCursor}`).set(auth(A)).expect(200);
+    const p2 = await request(app).get(`/v1/admin/customers?limit=2&cursor=${p1.body.nextCursor}`).set(auth(A)).expect(200);
     expect(p2.body.items).toHaveLength(1);
     expect(p2.body.nextCursor).toBeNull();
-    const id = p2.body.items[0]._id;
+    const cats = await request(app).get('/v1/admin/categories').set(auth(A)).expect(200);
+    expect(cats.body.items).toHaveLength(3);
+    const id = cats.body.items[2]._id;
     const upd = await request(app).patch(`/v1/admin/categories/${id}`).set(auth(A)).send({ name: 'Renamed' }).expect(200);
     expect(upd.body.name).toBe('Renamed');
     await request(app).delete(`/v1/admin/categories/${id}`).set(auth(A)).expect(200);
@@ -170,7 +174,7 @@ describe('admin API isolation', () => {
   });
 
   it('blocks suspended stores', async () => {
-    const s = await provisionTenant({ name: 'Sus', slug: 'sus-store', owner: { name: 'S', email: 's@example.com' } });
+    const s = await provisionTenant({ name: 'Sus', slug: 'sus-store', sampleData: false, owner: { name: 'S', email: 's@example.com' } });
     await runAsPlatform('test', () => Tenant.updateOne({ _id: s.tenantId }, { status: 'suspended' }));
     await request(app).get('/v1/admin/products').set('Authorization', `Bearer ${signStaffToken(s.ownerId, s.tenantId)}`).expect(403);
   });
@@ -193,13 +197,17 @@ describe('orders', () => {
 
 describe('site config + storefront', () => {
   it('edits draft, publishes immutable versions, serves by hostname only', async () => {
-    await request(app).get('/v1/store/config').set('Host', 'pizza-a.quickstore.pk').expect(404); // not published yet
+    await request(app).get('/v1/store/config').set('Host', 'pizza-a.localhost').expect(404); // not published yet
     await request(app)
       .patch('/v1/admin/site-config/draft')
       .set(auth(A))
       .send({ theme: { colors: { primary: '#E31837' }, customCss: 'body{} </style><script>alert(1)</script>' } })
       .expect(400);
     await request(app).patch('/v1/admin/site-config/draft').set(auth(A)).send({ theme: { colors: { primary: '#E31837' } } }).expect(200);
+    // Readiness checklist blocks publishing an incomplete store.
+    const notReady = await request(app).post('/v1/admin/site-config/publish').set(auth(A)).send({}).expect(400);
+    expect(notReady.body.code).toBe('NOT_READY');
+    await request(app).post('/v1/admin/branches').set(auth(A)).send({ name: 'Main' }).expect(201);
     const v1 = await request(app).post('/v1/admin/site-config/publish').set(auth(A)).send({}).expect(200);
     expect(v1.body.version).toBe(1);
     await request(app).patch('/v1/admin/site-config/draft').set(auth(A)).send({ theme: { colors: { primary: '#000000' } } }).expect(200);
@@ -208,18 +216,19 @@ describe('site config + storefront', () => {
     expect(rollback.body.version).toBe(3);
     expect(rollback.body.theme.colors.primary).toBe('#E31837');
 
-    const store = await request(app).get('/v1/store/config').set('Host', 'pizza-a.quickstore.pk').expect(200);
-    expect(store.body.version).toBe(3);
-    expect(store.body.tenantId).toBeUndefined();
+    const store = await request(app).get('/v1/store/config').set('Host', 'pizza-a.localhost').expect(200);
+    expect(store.body.config.version).toBe(3);
+    expect(store.body.config.tenantId).toBeUndefined();
     // Tenant B is not published → its host 404s, and A's config is never served on B's host.
-    await request(app).get('/v1/store/config').set('Host', 'burger-b.quickstore.pk').expect(404);
+    await request(app).get('/v1/store/config').set('Host', 'burger-b.localhost').expect(404);
     await request(app).get('/v1/store/config').set('Host', 'unknown.example.com').expect(404);
   });
 });
 
 describe('indexes', () => {
   it('every tenant-collection index is prefixed by tenantId', async () => {
-    const tenantModels = ALL_MODELS.filter((m) => m.schema.path('tenantId') && m !== Domain);
+    const tenantModels = ALL_MODELS.filter((m) => m.schema.plugins.some((p: any) => p.fn.name === 'tenantScopePlugin'));
+    expect(tenantModels.length).toBeGreaterThan(8);
     for (const m of tenantModels) {
       const idx = await m.listIndexes();
       for (const i of idx) {
@@ -229,7 +238,7 @@ describe('indexes', () => {
     }
     const collections = (await mongoose.connection.db!.listCollections().toArray()).map((c) => c.name).sort();
     expect(collections).toEqual(
-      ['branches', 'categories', 'counters', 'customers', 'domains', 'orders', 'products', 'roles', 'siteConfigs', 'tenants', 'users'],
+      ['auditLogs', 'branches', 'categories', 'counters', 'customers', 'domains', 'modifierGroups', 'orders', 'plans', 'platformUsers', 'products', 'roles', 'sessions', 'siteConfigs', 'tenants', 'users'],
     );
   });
 });

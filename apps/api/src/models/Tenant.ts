@@ -16,6 +16,10 @@ const TenantSchema = new Schema(
     businessType: { type: String, enum: BUSINESS_TYPES, default: 'restaurant' },
     status: { type: String, enum: TENANT_STATUSES, default: 'draft' },
     planId: { type: String, default: 'trial' },
+    trialEndsAt: { type: Date },
+    /** Store open/close switch from the admin dashboard; takes effect immediately (not publish-gated). */
+    acceptingOrders: { type: Boolean, default: true },
+    templateKey: { type: String },
     ownerId: { type: Schema.Types.ObjectId, ref: 'User' },
     locale: { type: String, default: 'en-PK' },
     currency: { type: String, default: 'PKR', uppercase: true, minlength: 3, maxlength: 3 },

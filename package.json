@@ -9,6 +9,8 @@
     "dev:api": "npm run dev -w @quickstore/api",
     "test": "npm test -w @quickstore/api",
     "db:check": "npm run db:check -w @quickstore/api",
-    "db:indexes": "npm run db:indexes -w @quickstore/api"
+    "db:indexes": "npm run db:indexes -w @quickstore/api",
+    "seed:demo": "npm run seed:demo -w @quickstore/api",
+    "platform:admin": "npm run platform:admin -w @quickstore/api --"
   }
 }
