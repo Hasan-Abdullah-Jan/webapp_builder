@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start all apps",
+      "dependsOn": ["API (4000)", "Storefront (3000)", "Tenant Admin (3001)", "Super Admin (3002)"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "API (4000)",
+      "type": "shell",
+      "command": "npm run dev:api",
+      "isBackground": true,
+      "presentation": { "group": "apps", "panel": "dedicated", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Storefront (3000)",
+      "type": "shell",
+      "command": "npm run dev:storefront",
+      "isBackground": true,
+      "presentation": { "group": "apps", "panel": "dedicated", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Tenant Admin (3001)",
+      "type": "shell",
+      "command": "npm run dev:admin",
+      "isBackground": true,
+      "presentation": { "group": "apps", "panel": "dedicated", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Super Admin (3002)",
+      "type": "shell",
+      "command": "npm run dev:ops",
+      "isBackground": true,
+      "presentation": { "group": "apps", "panel": "dedicated", "reveal": "always" },
+      "problemMatcher": []
+    }
+  ]
+}
