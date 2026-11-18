@@ -5,9 +5,12 @@ import { Branch, Category, Customer, ModifierGroup, Order, Product, SiteConfig, 
 import { requireTenantId } from '../db/tenantContext';
 import { AppError, badRequest, notFound } from './errors';
 import { bus } from './events';
+import { evaluateCoupon, redeemCoupon, releaseCoupon } from './coupons';
+import { vocabFor } from '../catalog/vocab';
 
 export interface StoreTenant {
   _id: Types.ObjectId;
+  businessType?: string | null;
   status?: string;
   name: string;
   slug: string;
@@ -71,6 +74,8 @@ export async function storeConfig(tenant: StoreTenant, draft = false) {
     store: {
       name: tenant.name, slug: tenant.slug, currency: tenant.currency ?? 'PKR', timezone: tenant.timezone ?? 'Asia/Karachi',
       acceptingOrders: tenant.acceptingOrders !== false,
+      businessType: tenant.businessType ?? 'other',
+      vocab: vocabFor(tenant.businessType),
     },
     config,
     branches: branches.map((b) => ({ ...b, openNow: isBranchOpenNow(b, tenant.timezone ?? undefined) })),
@@ -124,6 +129,7 @@ export const QuoteInput = z
       .min(1, 'Your cart is empty')
       .max(50),
     location: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).strict().optional(),
+    couponCode: z.string().trim().max(40).optional(),
   })
   .strict();
 
@@ -144,7 +150,7 @@ async function publishedFlags(): Promise<{ features: Flags; settings: Record<str
   return { features: (c.features ?? {}) as Flags, settings: (c.settings ?? {}) as Record<string, any> };
 }
 
-export async function quote(tenant: StoreTenant, raw: unknown) {
+export async function quote(tenant: StoreTenant, raw: unknown, opts: { phone?: string; strictCoupon?: boolean } = {}) {
   requireTenantId();
   const input = QuoteInput.parse(raw);
   const { features, settings } = await publishedFlags();
@@ -221,15 +227,40 @@ export async function quote(tenant: StoreTenant, raw: unknown) {
     const freeAbove = Number(settings.freeDeliveryAbove ?? 0);
     deliveryFee = freeAbove > 0 && subtotal >= freeAbove ? 0 : branch.deliveryFee ?? 0;
   }
+  // Discount code: in a quote an invalid code is reported but doesn't block the cart;
+  // at checkout (strictCoupon) it must be valid. Tax applies after product discounts.
+  let productDiscount = 0;
+  let deliveryDiscount = 0;
+  let coupon: { code: string; label: string; discount: number } | undefined;
+  let couponError: string | undefined;
+  if (input.couponCode) {
+    try {
+      if (!features.coupons?.enabled) throw badRequest("Discount codes aren't available");
+      const c = await evaluateCoupon(input.couponCode, { subtotal, deliveryFee, phone: opts.phone });
+      if (c.freeDelivery) {
+        if (input.type !== 'delivery') throw badRequest('This code is for delivery orders');
+        deliveryDiscount = deliveryFee;
+      } else {
+        productDiscount = c.discount;
+      }
+      coupon = { code: c.code, label: c.label, discount: productDiscount + deliveryDiscount };
+    } catch (err) {
+      if (opts.strictCoupon) throw err;
+      couponError = (err as Error).message;
+    }
+  }
+  const discount = productDiscount + deliveryDiscount;
   const taxPercent = Math.min(Math.max(Number(settings.taxPercent ?? 0), 0), 50);
-  const tax = Math.round((subtotal * taxPercent) / 100);
-  const total = subtotal + deliveryFee + tax;
+  const tax = Math.round(((subtotal - productDiscount) * taxPercent) / 100);
+  const total = Math.max(0, subtotal - productDiscount + deliveryFee - deliveryDiscount + tax);
 
   return {
     branch: { _id: branch._id, name: branch.name, prepTimeMins: branch.prepTimeMins },
     type: input.type,
     lines,
-    totals: { subtotal, deliveryFee, discount: 0, tax, total },
+    coupon,
+    couponError,
+    totals: { subtotal, deliveryFee, discount, tax, total },
   };
 }
 
@@ -264,9 +295,11 @@ export async function placeOrder(tenant: StoreTenant, raw: unknown, idempotencyK
   if (!features.guestCheckout?.enabled) throw badRequest('Please log in to order');
   if (input.type === 'delivery' && !input.customer.address) throw badRequest('Please enter your delivery address');
 
-  const q = await quote(tenant, {
-    branchId: input.branchId, type: input.type, items: input.items, location: input.location,
-  });
+  const q = await quote(
+    tenant,
+    { branchId: input.branchId, type: input.type, items: input.items, location: input.location, couponCode: input.couponCode },
+    { phone: input.customer.phone, strictCoupon: true },
+  );
 
   // Customers are per tenant (plan §2): same phone at two stores = two customers.
   const customer = await Customer.findOneAndUpdate(
@@ -283,7 +316,12 @@ export async function placeOrder(tenant: StoreTenant, raw: unknown, idempotencyK
 
   // Reserve tracked stock atomically; roll back on failure.
   const reserved: { id: Types.ObjectId; qty: number }[] = [];
+  let couponRedeemed = false;
   try {
+    if (q.coupon) {
+      await redeemCoupon(q.coupon.code);
+      couponRedeemed = true;
+    }
     for (const line of q.lines) {
       const r = await Product.updateOne(
         { _id: line.productId, stock: { $gte: line.quantity } },
@@ -310,6 +348,7 @@ export async function placeOrder(tenant: StoreTenant, raw: unknown, idempotencyK
       payment: { method: 'cod', status: 'pending' },
       idempotencyKey: key,
       notes: input.notes,
+      coupon: q.coupon,
       trackingCode,
     });
     bus.emitEvent('order.created', {
@@ -318,6 +357,7 @@ export async function placeOrder(tenant: StoreTenant, raw: unknown, idempotencyK
     return { orderId: String(order._id), orderNo, trackingCode, totals: q.totals };
   } catch (err: any) {
     for (const r of reserved) await Product.updateOne({ _id: r.id }, { $inc: { stock: r.qty } });
+    if (couponRedeemed && q.coupon) await releaseCoupon(q.coupon.code);
     if (err?.code === 11000 && key) {
       const existing = await Order.findOne({ idempotencyKey: key }).select('+trackingCode orderNo').lean();
       if (existing) return { orderId: String(existing._id), orderNo: existing.orderNo, trackingCode: existing.trackingCode };

@@ -238,7 +238,7 @@ describe('indexes', () => {
     }
     const collections = (await mongoose.connection.db!.listCollections().toArray()).map((c) => c.name).sort();
     expect(collections).toEqual(
-      ['auditLogs', 'branches', 'categories', 'counters', 'customers', 'domains', 'modifierGroups', 'orders', 'plans', 'platformUsers', 'products', 'roles', 'sessions', 'siteConfigs', 'tenants', 'users'],
+      ['auditLogs', 'branches', 'categories', 'counters', 'coupons', 'customers', 'domains', 'modifierGroups', 'orders', 'plans', 'platformUsers', 'products', 'roles', 'sessions', 'siteConfigs', 'tenants', 'users'],
     );
   });
 });

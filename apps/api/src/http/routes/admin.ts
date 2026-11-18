@@ -10,6 +10,12 @@ import { board, exportCsv, orderReads, updateOrderStatus } from '../../services/
 import { dashboard, setAcceptingOrders } from '../../services/dashboard';
 import { assertWithinLimit, usage } from '../../services/limits';
 import { me } from '../../services/auth';
+import express from 'express';
+import { Coupon } from '../../models';
+import { CouponCreate, CouponUpdate } from '../../services/coupons';
+import { salesReport } from '../../services/reports';
+import { exportProductsCsv, importProductsCsv } from '../../services/productCsv';
+import { deleteImage, listImages, MAX_BYTES, uploadImage } from '../../services/media';
 import { bus } from '../../services/events';
 import { requireTenantId, runAsPlatform } from '../../db/tenantContext';
 import { THEME_PRESETS, FONT_PAIRS, SECTION_TYPES } from '../../catalog/themes';
@@ -39,6 +45,9 @@ export const modifierGroups = createCrudService(ModifierGroup, {
 export const branches = createCrudService(Branch, {
   name: 'Branch', createSchema: v.BranchCreate, updateSchema: v.BranchUpdate, searchFields: ['name'], sort: { name: 1 },
   beforeCreate: () => assertWithinLimit('branches'),
+});
+export const coupons = createCrudService(Coupon, {
+  name: 'Discount code', createSchema: CouponCreate, updateSchema: CouponUpdate, searchFields: ['code'],
 });
 export const customers = createCrudService(Customer, {
   name: 'Customer', createSchema: v.CustomerCreate, updateSchema: v.CustomerUpdate, searchFields: ['phone', 'name', 'email'],
@@ -97,6 +106,21 @@ export function adminRouter() {
     return runAsPlatform('settings: own tenant', () =>
       Tenant.findOneAndUpdate({ _id: tenantId }, { $set: data }, { new: true }).select('name timezone currency').lean());
   }));
+
+  // Specific product routes before the generic /products/:id.
+  r.get('/products/export.csv', requirePermission('catalog.read'), wrap(async (_req, res) => {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="products.csv"');
+    res.send(await exportProductsCsv());
+  }));
+  r.post('/products/import', requirePermission('catalog.write'), express.text({ type: ['text/csv', 'text/plain'], limit: '2mb' }),
+    wrap((req) => importProductsCsv(req.body)));
+  r.get('/media', requirePermission('catalog.read'), wrap(() => listImages()));
+  r.post('/media', requirePermission('catalog.write'), express.raw({ type: () => true, limit: MAX_BYTES + 1024 }),
+    created((req) => uploadImage(req.body, String(req.headers['x-filename'] ?? 'image'))));
+  r.delete('/media/:id', requirePermission('catalog.write'), wrap((req) => deleteImage(String(req.params.id))));
+  r.get('/reports', requirePermission('orders.read'), wrap((req) => salesReport(req.query.days)));
+  mountCrud(r, '/coupons', coupons, 'site.read', 'site.write');
 
   mountCrud(r, '/categories', categories, 'catalog.read', 'catalog.write');
   mountCrud(r, '/products', products, 'catalog.read', 'catalog.write');

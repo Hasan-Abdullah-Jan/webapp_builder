@@ -10,6 +10,9 @@ async function main() {
     const indexes = await model.listIndexes();
     console.log(`${model.collection.collectionName.padEnd(14)} ${indexes.length} indexes${dropped.length ? ` (dropped stale: ${dropped.join(', ')})` : ''}`);
   }
+  const db = (await import('mongoose')).default.connection.db!;
+  await db.collection('media.files').createIndex({ 'metadata.tenantId': 1, uploadDate: -1 });
+  console.log('media.files    tenant index ensured');
   await disconnectFromDatabase();
 }
 

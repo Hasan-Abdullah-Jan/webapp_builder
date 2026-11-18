@@ -8,6 +8,7 @@ import { platformRouter } from './http/routes/platform';
 import { publicRouter } from './http/routes/public';
 import { errorHandler } from './http/errorHandler';
 import { pingDatabase } from './db/connection';
+import { streamImage } from './services/media';
 
 export function createApp() {
   const app = express();
@@ -23,6 +24,9 @@ export function createApp() {
     res.status(db.ok ? 200 : 503).json({ status: db.ok ? 'ok' : 'degraded', db });
   });
 
+  app.get('/v1/media/:id', (req, res, next) => {
+    streamImage(String(req.params.id), res).catch(next);
+  });
   app.use('/v1/auth', authRouter());
   app.use('/v1/public', publicRouter());
   app.use('/v1/admin', adminRouter());

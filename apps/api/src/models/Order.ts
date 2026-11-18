@@ -64,6 +64,7 @@ const OrderSchema = new Schema(
     riderId: { type: Schema.Types.ObjectId, ref: 'User' },
     idempotencyKey: { type: String, maxlength: 128 },
     notes: { type: String, maxlength: 500 },
+    coupon: { code: String, label: String, discount: Number },
     /** Random secret in the customer's tracking link; prevents order enumeration. */
     trackingCode: { type: String, select: false },
   },
@@ -74,6 +75,7 @@ OrderSchema.index({ tenantId: 1, orderNo: 1 }, { unique: true });
 OrderSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 OrderSchema.index({ tenantId: 1, branchId: 1, status: 1, createdAt: -1 });
 OrderSchema.index({ tenantId: 1, customerId: 1, createdAt: -1 });
+OrderSchema.index({ tenantId: 1, 'coupon.code': 1 }, { sparse: true });
 OrderSchema.index(
   { tenantId: 1, idempotencyKey: 1 },
   { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } },

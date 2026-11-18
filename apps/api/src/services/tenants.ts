@@ -63,6 +63,8 @@ export async function cloneSampleCatalog(templateKey: string) {
       description: p.description,
       basePrice: p.basePrice,
       tags: p.tags ?? [],
+      variants: p.variants ?? [],
+      ...(typeof p.stock === 'number' ? { stock: p.stock } : {}),
       categoryId: catIds.get(p.category),
       modifierGroupIds: (p.modifiers ?? []).map((k) => groupIds.get(k)).filter(Boolean),
       sort: i,
@@ -150,7 +152,7 @@ export async function resolveTenantByHost(rawHost: string | undefined, allowDraf
     if (!domain || (domain.type === 'custom' && !domain.verified)) return null;
     const statuses = allowDraft ? ['active', 'draft'] : ['active'];
     const tenant = await Tenant.findOne({ _id: domain.tenantId, status: { $in: statuses } })
-      .select('_id name slug currency timezone locale acceptingOrders status')
+      .select('_id name slug currency timezone locale acceptingOrders status businessType')
       .lean();
     return tenant;
   });

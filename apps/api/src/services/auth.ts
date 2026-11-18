@@ -7,6 +7,7 @@ import { verifyPasswordOrDummy } from './password';
 import { verifyTotp } from './totp';
 import { createSession, revokeSession, rotateSession, signAccess } from './tokens';
 import { provisionTenant } from './tenants';
+import { vocabFor } from '../catalog/vocab';
 
 const badLogin = () => new AppError(401, 'INVALID_LOGIN', 'Wrong website address, email or password');
 
@@ -72,7 +73,7 @@ export async function me(tenantId: Types.ObjectId, userId: Types.ObjectId) {
   );
   const user = await User.findOne({ _id: userId }).select('name email phone roleId branchIds').lean();
   const role = user ? await Role.findOne({ _id: user.roleId }).select('name permissions').lean() : null;
-  return { tenant, user, role, rootDomain: process.env.ROOT_DOMAIN ?? 'localhost' };
+  return { tenant, user, role, vocab: vocabFor(tenant?.businessType), rootDomain: process.env.ROOT_DOMAIN ?? 'localhost' };
 }
 
 // ---------------------------------------------------------------------------

@@ -29,6 +29,9 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   if ((err as any)?.code === 11000) {
     return res.status(409).json({ code: 'DUPLICATE', message: 'A record with these values already exists' });
   }
+  if ((err as any)?.type === 'entity.too.large') {
+    return res.status(413).json({ code: 'TOO_LARGE', message: 'That file is too large' });
+  }
   if ((err as any)?.type === 'entity.parse.failed') {
     return res.status(400).json({ code: 'BAD_JSON', message: 'Malformed JSON body' });
   }

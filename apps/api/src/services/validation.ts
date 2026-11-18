@@ -6,13 +6,15 @@ import { ALLOWED_FONTS, SECTION_TYPES } from '../catalog/themes';
 const objectId = z.string().refine(isValidObjectId, 'invalid id');
 const slug = z.string().trim().toLowerCase().regex(/^[a-z0-9-]{1,80}$/);
 const url = z.string().url().max(2048).refine((u) => /^https?:\/\//i.test(u), 'must be http(s)');
+/** An https image link, or an uploaded image (/media/<id>). */
+const image = z.string().max(2048).refine((u) => /^\/media\/[a-f0-9]{24}$/.test(u) || /^https:\/\/\S+$/i.test(u), 'upload an image or paste an https:// link');
 const money = z.number().finite().min(0).max(10_000_000);
 
 export const CategoryCreate = z
   .object({
     name: z.string().trim().min(1).max(120),
     slug,
-    image: url.optional(),
+    image: image.optional(),
     sort: z.number().int().optional(),
     visible: z.boolean().optional(),
     branchIds: z.array(objectId).max(200).optional(),
@@ -27,7 +29,7 @@ export const ProductCreate = z
     description: z.string().max(4000).optional(),
     categoryId: objectId.optional(),
     modifierGroupIds: z.array(objectId).max(20).optional(),
-    images: z.array(url).max(20).optional(),
+    images: z.array(image).max(20).optional(),
     basePrice: money,
     variants: z.array(z.object({ name: z.string().min(1).max(80), price: money }).strict()).max(50).optional(),
     tags: z.array(z.string().trim().max(40)).max(30).optional(),
@@ -105,8 +107,8 @@ export const SiteConfigPatch = z
         radius: z.enum(['none', 'sm', 'md', 'lg', 'full']).optional(),
         buttonStyle: z.enum(['solid', 'outline', 'pill']).optional(),
         mode: z.enum(['light', 'dark']).optional(),
-        logo: url.or(z.literal('')).optional(),
-        favicon: url.or(z.literal('')).optional(),
+        logo: image.or(z.literal('')).optional(),
+        favicon: image.or(z.literal('')).optional(),
         customCss: safeCss.optional(),
       })
       .strict()
@@ -127,7 +129,7 @@ export const SiteConfigPatch = z
       })
       .strict()
       .optional(),
-    seo: z.object({ title: z.string().max(70), description: z.string().max(200), ogImage: url.or(z.literal('')) }).partial().strict().optional(),
+    seo: z.object({ title: z.string().max(70), description: z.string().max(200), ogImage: image.or(z.literal('')) }).partial().strict().optional(),
     settings: z
       .object({
         taxPercent: z.number().min(0).max(50),

@@ -14,6 +14,7 @@ export { ModifierGroup } from './ModifierGroup';
 export { Customer } from './Customer';
 export { Order, ORDER_STATUSES, ORDER_TRANSITIONS, type OrderStatus } from './Order';
 export { Counter, nextSequence } from './Counter';
+export { Coupon } from './Coupon';
 
 import { Tenant } from './Tenant';
 import { Domain } from './Domain';
@@ -31,8 +32,9 @@ import { ModifierGroup } from './ModifierGroup';
 import { Customer } from './Customer';
 import { Order } from './Order';
 import { Counter } from './Counter';
+import { Coupon } from './Coupon';
 
 export const ALL_MODELS = [
   Tenant, Domain, Plan, PlatformUser, Session, AuditLog,
-  Role, User, SiteConfig, Branch, Category, Product, ModifierGroup, Customer, Order, Counter,
+  Role, User, SiteConfig, Branch, Category, Product, ModifierGroup, Customer, Order, Counter, Coupon,
 ];
