@@ -1,3 +1,4 @@
+import dns from 'node:dns';
 import mongoose from 'mongoose';
 import { getEnv, redactMongoUri } from '../config/env';
 
@@ -26,6 +27,12 @@ export async function connectToDatabase(opts: ConnectOptions = {}): Promise<type
   // Drop filter keys that are not in the schema. Request input is validated with Zod
   // before it reaches a query, so user-supplied objects never become raw filters.
   mongoose.set('strictQuery', true);
+
+  // Some routers (common on Windows home networks) refuse the SRV lookups that
+  // mongodb+srv:// needs (querySrv ECONNREFUSED). MONGODB_DNS_SERVERS=8.8.8.8,1.1.1.1
+  // sends Node's lookups to those resolvers instead.
+  const dnsServers = (process.env.MONGODB_DNS_SERVERS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (dnsServers.length && uri.startsWith('mongodb+srv://')) dns.setServers(dnsServers);
 
   connecting = mongoose
     .connect(uri, {
