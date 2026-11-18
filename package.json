@@ -1,0 +1,14 @@
+{
+  "name": "quickstore",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @quickstore/api",
+    "test": "npm test -w @quickstore/api",
+    "db:check": "npm run db:check -w @quickstore/api",
+    "db:indexes": "npm run db:indexes -w @quickstore/api"
+  }
+}
