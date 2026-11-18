@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { api } from '@/lib/client';
 import { useMe } from '@/components/Shell';
-import { ErrorBox, Field, Modal, confirmAction, useLoad, useToast } from '@/components/ui';
+import { ErrorBox, Field, Modal, PageHeader, useDialog, useLoad, useToast } from '@/components/ui';
+import { Plus } from 'lucide-react';
 
 interface Staff { _id: string; name: string; email?: string; phone?: string; roleId: string; active: boolean; lastLoginAt?: string }
 interface Role { _id: string; name: string; permissions: string[] }
@@ -18,6 +19,7 @@ const ROLE_HELP: Record<string, string> = {
 export default function StaffPage() {
   const { me } = useMe();
   const toast = useToast();
+  const dialog = useDialog();
   const data = useLoad(() => api<{ users: Staff[]; roles: Role[]; ownerId: string }>('staff'));
   const [adding, setAdding] = useState(false);
   const roleName = new Map((data.data?.roles ?? []).map((r) => [r._id, r.name]));
@@ -31,7 +33,7 @@ export default function StaffPage() {
     }
   }
   async function remove(u: Staff) {
-    if (!confirmAction(`Remove ${u.name}? They will be logged out immediately.`)) return;
+    if (!(await dialog.confirm({ title: `Remove ${u.name}?`, message: 'They lose access and are logged out immediately.', confirmLabel: 'Remove', danger: true }))) return;
     try {
       await api(`staff/${u._id}`, { method: 'DELETE' });
       data.reload();
@@ -43,13 +45,10 @@ export default function StaffPage() {
 
   return (
     <div className="content">
-      <div className="page-head">
-        <h1>Staff &amp; roles</h1>
-        <span className="spacer" />
-        <button className="btn" onClick={() => setAdding(true)}>+ Add staff</button>
-      </div>
+      <PageHeader title="Staff" description="Give your team their own logins. Each role only sees what it needs."
+        actions={<button className="btn" onClick={() => setAdding(true)}><Plus size={15} /> Add staff member</button>} />
       <ErrorBox error={data.error} />
-      <div className="card" style={{ padding: 0 }}>
+      <div className="card flush">
         <table className="table">
           <thead><tr><th>Name</th><th>Login</th><th>Role</th><th>Last login</th><th /></tr></thead>
           <tbody>

@@ -13,7 +13,11 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   }
 
   const target = `${API_URL}/v1/admin/${path.map(encodeURIComponent).join('/')}${req.nextUrl.search}`;
-  const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.text();
+  // Bodies are forwarded as bytes so image uploads and CSV files arrive intact.
+  const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : Buffer.from(await req.arrayBuffer());
+  if (body && body.length > 4 * 1024 * 1024) return NextResponse.json({ code: 'TOO_LARGE', message: 'That file is too large' }, { status: 413 });
+  const contentType = req.headers.get('content-type') ?? 'application/json';
+  const filename = req.headers.get('x-filename');
   const isStream = path.join('/') === 'orders/stream';
 
   let { access } = await readSession();
@@ -23,7 +27,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   const call = (token?: string) =>
     fetch(target, {
       method: req.method,
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      headers: { 'Content-Type': contentType, ...(filename ? { 'X-Filename': filename.slice(0, 80) } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body,
       cache: 'no-store',
       signal: isStream ? req.signal : undefined,

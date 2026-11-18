@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC = ['/login', '/signup', '/api/auth', '/api/public'];
+const PUBLIC = ['/login', '/signup', '/api/auth', '/api/public', '/media'];
 
 /** Pages require a session cookie; the API still verifies every request. */
 export function middleware(req: NextRequest) {

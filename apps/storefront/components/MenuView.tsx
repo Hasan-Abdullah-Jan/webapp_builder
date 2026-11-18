@@ -1,24 +1,29 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Search } from 'lucide-react';
 import type { Menu } from '@/lib/types';
 import { ProductCard } from './ProductCard';
 import { useStore } from './StoreProvider';
 
 /** Menu with sticky category tabs, scroll-spy and search (plan §8). */
 export function MenuView({ menu }: { menu: Menu }) {
-  const { data } = useStore();
-  const [q, setQ] = useState('');
+  const { data, v } = useStore();
+  const params = useSearchParams();
+  const [q, setQ] = useState(params.get('q') ?? '');
   const [active, setActive] = useState(menu.categories[0]?.slug);
   const cols = data.config.layout.productCard?.imageRatio === 'landscape' ? 3 : 4;
 
   const groups = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return menu.categories
+    const uncategorised = menu.items.filter((i) => !i.categoryId || !menu.categories.some((c) => c._id === i.categoryId));
+    const cats = uncategorised.length ? [...menu.categories, { _id: '__other', name: 'More', slug: 'more' }] : menu.categories;
+    return cats
       .map((c) => ({
         c,
         items: menu.items.filter(
-          (i) => i.categoryId === c._id && (!needle || i.name.toLowerCase().includes(needle) || i.description?.toLowerCase().includes(needle)),
+          (i) => (c._id === '__other' ? !i.categoryId || !menu.categories.some((x) => x._id === i.categoryId) : i.categoryId === c._id) && (!needle || i.name.toLowerCase().includes(needle) || i.description?.toLowerCase().includes(needle)),
         ),
       }))
       .filter((g) => g.items.length);
@@ -55,10 +60,13 @@ export function MenuView({ menu }: { menu: Menu }) {
       </div>
       <div className="container" style={{ paddingBottom: 48 }}>
         <div className="row" style={{ paddingTop: 24, flexWrap: 'wrap' }}>
-          <h1 style={{ margin: 0, fontSize: 32 }}>Menu</h1>
+          <h1 style={{ margin: 0, fontSize: 32 }}>{v.catalog}</h1>
           <span className="spacer" />
-          <label className="sr-only" htmlFor="menu-search">Search the menu</label>
-          <input id="menu-search" className="search" placeholder="Search the menu" value={q} onChange={(e) => setQ(e.target.value)} />
+          <label className="sr-only" htmlFor="menu-search">Search {v.items.toLowerCase()}</label>
+          <div className="search-wrap">
+            <Search size={16} aria-hidden />
+            <input id="menu-search" className="search" type="search" placeholder={`Search ${v.items.toLowerCase()}`} value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
         </div>
         {groups.length === 0 && <p className="empty muted">No items match “{q}”.</p>}
         {groups.map(({ c, items }) => (

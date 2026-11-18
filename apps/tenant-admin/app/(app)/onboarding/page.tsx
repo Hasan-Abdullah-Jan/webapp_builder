@@ -7,15 +7,16 @@ import { useMe } from '@/components/Shell';
 import { BranchForm, type Branch } from '@/components/BranchForm';
 import { PublishPanel } from '@/components/PublishPanel';
 import { FeatureGrid } from '@/components/FeatureGrid';
-import { useToast } from '@/components/ui';
+import { ImageUploader, useToast } from '@/components/ui';
 
 interface Preset { key: string; name: string; colors: Record<string, string> }
 
-const STEPS = ['Brand', 'Features', 'Location & hours', 'Menu', 'Publish'];
+
 
 /** Wizard steps 4–8 (plan §5). Each step autosaves; "Next" always works with defaults. */
 export default function OnboardingPage() {
-  const { me } = useMe();
+  const { me, v } = useMe();
+  const STEPS = ['Brand', 'Features', 'Location & hours', v.catalog === 'Menu' ? 'Menu' : v.items, 'Publish'];
   const toast = useToast();
   const [step, setStep] = useState(0);
   const [presets, setPresets] = useState<Preset[]>([]);
@@ -67,17 +68,13 @@ export default function OnboardingPage() {
               </button>
             ))}
           </div>
-          <div className="field">
-            <label htmlFor="ob-logo">Logo URL (optional)</label>
-            <input id="ob-logo" className="input" type="url" placeholder="https://…/logo.png" value={logo} onChange={(e) => setLogo(e.target.value)}
-              onBlur={() => saveBrand(colors, logo)} />
-          </div>
+          <ImageUploader label="Logo (optional)" value={logo} onChange={(url) => { setLogo(url); saveBrand(colors, url); }} hint="You can change it any time in Website design." />
         </div>
       )}
 
       {step === 1 && (
         <div className="stack">
-          <p className="muted" style={{ margin: 0 }}>We switched on what most {me.tenant.businessType}s need. Change anything you like.</p>
+          <p className="muted" style={{ margin: 0 }}>We switched on what most stores like yours need. Change anything you like.</p>
           <FeatureGrid compact />
         </div>
       )}
@@ -96,13 +93,13 @@ export default function OnboardingPage() {
 
       {step === 3 && (
         <div className="card stack">
-          <h2>Your menu</h2>
+          <h2>Your {v.catalog === 'Menu' ? 'menu' : v.items.toLowerCase()}</h2>
           <p style={{ margin: 0 }}>
-            Your store has <strong>{counts.products}</strong> items in <strong>{counts.categories}</strong> categories
-            {me.tenant.templateKey ? ' from your template’s sample menu' : ''}.
+            Your store has <strong>{counts.products}</strong> {v.items.toLowerCase()} in <strong>{counts.categories}</strong> {v.categories.toLowerCase()}
+            {me.tenant.templateKey ? ' from your template' : ''}.
           </p>
           <p className="muted" style={{ margin: 0 }}>Edit names and prices now, or keep them and change later. Customers only see your site after you publish.</p>
-          <div className="row"><Link className="btn btn-secondary" href="/menu">Open menu editor</Link></div>
+          <div className="row"><Link className="btn btn-secondary" href="/menu">Edit {v.items.toLowerCase()}</Link></div>
         </div>
       )}
 

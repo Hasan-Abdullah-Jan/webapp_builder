@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, storeUrl } from '@/lib/client';
 import { useMe } from '@/components/Shell';
-import { Field, confirmAction, useToast } from '@/components/ui';
+import { Field, ImageUploader, useDialog, useToast } from '@/components/ui';
 
 type Props = Record<string, string | number | boolean>;
 interface Section { type: string; props: Props }
@@ -28,7 +28,7 @@ const SECTION_FIELDS: Record<string, { key: string; label: string; kind: 'text' 
   announcement: [{ key: 'text', label: 'Text', kind: 'text' }],
   heroBanner: [
     { key: 'title', label: 'Headline', kind: 'text' }, { key: 'subtitle', label: 'Sub-headline', kind: 'text' },
-    { key: 'cta', label: 'Button text', kind: 'text' }, { key: 'image', label: 'Background image URL', kind: 'url' },
+    { key: 'cta', label: 'Button text', kind: 'text' }, { key: 'image', label: 'Background image', kind: 'url' },
   ],
   categoryStrip: [{ key: 'title', label: 'Title (optional)', kind: 'text' }],
   featuredProducts: [
@@ -63,6 +63,7 @@ const isHex = (s?: string) => Boolean(s && /^#[0-9a-fA-F]{6}$/.test(s));
 export default function DesignPage() {
   const { me, can } = useMe();
   const toast = useToast();
+  const dialog = useDialog();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [opts, setOpts] = useState<Options | null>(null);
   const [token, setToken] = useState('');
@@ -184,7 +185,7 @@ export default function DesignPage() {
   const textOnBg = contrast(colors.text, colors.background);
 
   async function resetTemplate(key: string) {
-    if (!confirmAction('Reset colours, fonts and sections to this template? Your menu and settings stay.')) return;
+    if (!(await dialog.confirm({ title: 'Apply this template?', message: 'Colours, fonts and home page sections are replaced. Your products, prices and settings stay.', confirmLabel: 'Apply template' }))) return;
     try {
       const d = await api<Draft>('site-config/reset', { method: 'POST', body: { templateKey: key } });
       const next = { ...draft!, theme: d.theme, layout: d.layout };
@@ -259,10 +260,8 @@ export default function DesignPage() {
                   </select>
                 </Field>
               </div>
-              <Field label="Logo URL" htmlFor="logo" hint="PNG or SVG, transparent background works best.">
-                <input id="logo" className="input" type="url" placeholder="https://…" value={t.logo ?? ''} onChange={(e) => setTheme({ logo: e.target.value })} />
-              </Field>
-              <Field label="Favicon URL" htmlFor="fav"><input id="fav" className="input" type="url" placeholder="https://…" value={t.favicon ?? ''} onChange={(e) => setTheme({ favicon: e.target.value })} /></Field>
+              <ImageUploader label="Logo" value={t.logo ?? ''} onChange={(url) => setTheme({ logo: url })} hint="A transparent PNG works best." compact />
+              <ImageUploader label="Browser tab icon (favicon)" value={t.favicon ?? ''} onChange={(url) => setTheme({ favicon: url })} compact />
               <details>
                 <summary className="label" style={{ cursor: 'pointer' }}>Custom CSS (advanced)</summary>
                 <textarea className="textarea" style={{ fontFamily: 'monospace', marginTop: 8 }} rows={6} value={t.customCss ?? ''} onChange={(e) => setTheme({ customCss: e.target.value })} />
@@ -319,8 +318,10 @@ export default function DesignPage() {
                           <textarea id={id} className="textarea" value={String(val ?? '')} onChange={(e) => set(e.target.value)} />
                         ) : f.kind === 'number' ? (
                           <input id={id} className="input" type="number" min={f.min} max={f.max} value={val === undefined ? '' : String(val)} onChange={(e) => set(e.target.value === '' ? '' : Math.min(f.max ?? 99, Math.max(f.min ?? 0, Number(e.target.value))))} />
+                        ) : f.kind === 'url' ? (
+                          <ImageUploader label="" value={String(val ?? '')} onChange={(url) => set(url)} compact />
                         ) : (
-                          <input id={id} className="input" type={f.kind === 'url' ? 'url' : 'text'} value={String(val ?? '')} onChange={(e) => set(e.target.value)} />
+                          <input id={id} className="input" type="text" value={String(val ?? '')} onChange={(e) => set(e.target.value)} />
                         )}
                       </Field>
                     );
@@ -361,7 +362,7 @@ export default function DesignPage() {
               <Field label="Description (Google)" htmlFor="sd" hint={`${(draft.seo.description ?? '').length}/200`}>
                 <textarea id="sd" className="textarea" maxLength={200} value={draft.seo.description ?? ''} onChange={(e) => apply({ ...draft, seo: { ...draft.seo, description: e.target.value } })} />
               </Field>
-              <Field label="Share image URL" htmlFor="og"><input id="og" className="input" type="url" value={draft.seo.ogImage ?? ''} onChange={(e) => apply({ ...draft, seo: { ...draft.seo, ogImage: e.target.value } })} /></Field>
+              <ImageUploader label="Share image (WhatsApp, Facebook previews)" value={draft.seo.ogImage ?? ''} onChange={(url) => apply({ ...draft, seo: { ...draft.seo, ogImage: url } })} compact />
               {(['phone', 'whatsapp', 'instagram', 'facebook'] as const).map((k) => (
                 <Field key={k} label={{ phone: 'Phone', whatsapp: 'WhatsApp number', instagram: 'Instagram URL', facebook: 'Facebook URL' }[k]} htmlFor={`s-${k}`}>
                   <input id={`s-${k}`} className="input" value={draft.settings[k] ?? ''} onChange={(e) => apply({ ...draft, settings: { ...draft.settings, [k]: e.target.value } })} />

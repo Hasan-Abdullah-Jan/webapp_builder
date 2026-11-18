@@ -51,8 +51,23 @@ export interface Branch {
   hours?: Record<string, { open: string; close: string; closed?: boolean }>;
 }
 
+export interface Vocab {
+  catalog: string; item: string; items: string; category: string; categories: string;
+  options: string; cta: string; pickup: string; orderVerb: string; emptyCatalog: string;
+}
+
+export const DEFAULT_VOCAB: Vocab = {
+  catalog: 'Shop', item: 'Product', items: 'Products', category: 'Collection', categories: 'Collections',
+  options: 'Options', cta: 'Shop now', pickup: 'Store pickup', orderVerb: 'Buy', emptyCatalog: '',
+};
+
+/** URL of the catalogue page for this business type. */
+export function catalogPath(v: Vocab) {
+  return v.catalog === 'Menu' ? '/menu' : v.catalog === 'Services' ? '/services' : '/shop';
+}
+
 export interface StoreData {
-  store: { name: string; slug: string; currency: string; timezone: string; acceptingOrders: boolean };
+  store: { name: string; slug: string; currency: string; timezone: string; acceptingOrders: boolean; businessType?: string; vocab?: Vocab };
   config: SiteConfig;
   branches: Branch[];
   preview: boolean;

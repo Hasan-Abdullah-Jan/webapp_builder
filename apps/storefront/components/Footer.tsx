@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { StoreData } from '@/lib/types';
+import { catalogPath, DEFAULT_VOCAB, type StoreData } from '@/lib/types';
 
 export function Footer({ data }: { data: StoreData }) {
   const s = data.config.settings ?? {};
@@ -25,8 +25,8 @@ export function Footer({ data }: { data: StoreData }) {
             {f.text && <p className="muted" style={{ margin: 0 }}>{f.text}</p>}
           </div>
           <div>
-            <h4>Order</h4>
-            <p style={{ margin: 0 }}><Link href="/menu">Menu</Link></p>
+            <h4>Browse</h4>
+            <p style={{ margin: 0 }}><Link href={catalogPath(data.store.vocab ?? DEFAULT_VOCAB)}>{(data.store.vocab ?? DEFAULT_VOCAB).catalog}</Link></p>
             <p style={{ margin: '4px 0 0' }}><Link href="/checkout">Checkout</Link></p>
           </div>
           {(s.phone || s.whatsapp || s.instagram || s.facebook) && (

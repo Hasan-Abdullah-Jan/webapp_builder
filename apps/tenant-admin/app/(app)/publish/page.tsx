@@ -4,16 +4,19 @@ import { useState } from 'react';
 import { api } from '@/lib/client';
 import { useMe } from '@/components/Shell';
 import { PublishPanel } from '@/components/PublishPanel';
-import { ErrorBox, confirmAction, useLoad, useToast } from '@/components/ui';
+import { ErrorBox, PageHeader, useDialog, useLoad, useToast } from '@/components/ui';
+import { ShareCard } from '@/components/ShareCard';
 
 export default function PublishPage() {
   const { can } = useMe();
   const toast = useToast();
+  const dialog = useDialog();
+  const { me } = useMe();
   const versions = useLoad(() => api<{ _id: string; version: number; publishedAt: string }[]>('site-config/versions'));
   const [busy, setBusy] = useState(false);
 
   async function rollback(v: number) {
-    if (!confirmAction(`Make version ${v} live again? Your draft will be replaced with it.`)) return;
+    if (!(await dialog.confirm({ title: `Restore version ${v}?`, message: 'It goes live immediately and your draft is replaced with it.', confirmLabel: 'Restore' }))) return;
     setBusy(true);
     try {
       const r = await api<{ version: number }>('site-config/publish', { method: 'POST', body: { fromVersion: v } });
@@ -28,10 +31,13 @@ export default function PublishPage() {
 
   return (
     <div className="content">
-      <div className="page-head"><h1>Publish</h1></div>
-      <PublishPanel onPublished={versions.reload} />
-      <div className="card">
-        <h2>Version history</h2>
+      <PageHeader title="Publish" description="Changes you make in the builder, features and settings go live when you publish." />
+      <div className="cols-2-1">
+        <PublishPanel onPublished={versions.reload} />
+        {me.tenant.status === 'active' && <ShareCard />}
+      </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="card-head"><h2>Version history</h2><span className="sub">Restore any earlier version in one click</span></div>
         <ErrorBox error={versions.error} />
         {versions.data?.length === 0 && <p className="muted">Nothing published yet.</p>}
         <table className="table">

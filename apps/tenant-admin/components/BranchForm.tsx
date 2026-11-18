@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { api } from '@/lib/client';
-import { ErrorBox, Field, Modal, confirmAction } from '@/components/ui';
+import { ErrorBox, Field, Modal, useDialog } from '@/components/ui';
 
 export const DAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']] as const;
 export type Hours = Record<string, { open: string; close: string; closed?: boolean }>;
@@ -27,6 +27,7 @@ export function BranchForm({ initial, onClose, onSaved, inline }: { initial: Par
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const isNew = !initial._id;
+  const dialog = useDialog();
 
   const sameEveryDay = () => {
     const mon = hours.mon;
@@ -57,7 +58,7 @@ export function BranchForm({ initial, onClose, onSaved, inline }: { initial: Par
   }
 
   async function remove() {
-    if (!confirmAction(`Delete branch “${initial.name}”?`)) return;
+    if (!(await dialog.confirm({ title: `Delete ${initial.name}?`, message: 'Customers will no longer see this location.', confirmLabel: 'Delete', danger: true }))) return;
     try {
       await api(`branches/${initial._id}`, { method: 'DELETE' });
       onSaved();

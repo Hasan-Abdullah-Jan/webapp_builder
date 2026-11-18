@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import type { MenuItem } from '@/lib/types';
 import { initials, money } from '@/lib/format';
 import { useStore } from './StoreProvider';
@@ -33,8 +34,8 @@ export function ProductCard({ item }: { item: MenuItem }) {
           <span className="name">{item.name}</span>
           {pc.showDescription !== false && item.description && <span className="desc">{item.description}</span>}
           <div className="foot">
-            <span className="price">{money(item.price, data.store.currency)}</span>
-            {item.available && <span className="add-pill" aria-hidden>+</span>}
+            <span className="price">{item.variants?.length && new Set(item.variants.map((x) => x.price)).size > 1 ? `From ${money(Math.min(...item.variants.map((x) => x.price)), data.store.currency)}` : money(item.variants?.[0]?.price ?? item.price, data.store.currency)}</span>
+            {item.available && <span className="add-pill" aria-hidden><Plus size={18} /></span>}
           </div>
         </div>
       </button>

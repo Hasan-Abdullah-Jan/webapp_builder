@@ -4,15 +4,16 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api } from '@/lib/client';
+import { CreditCard, LayoutDashboard, LogOut, ScrollText, ShieldCheck, Store } from 'lucide-react';
 
 const RoleCtx = createContext<string>('support');
 export const useRole = () => useContext(RoleCtx);
 
 const NAV = [
-  { href: '/', label: 'Overview', icon: '◧' },
-  { href: '/tenants', label: 'Tenants', icon: '🏪' },
-  { href: '/plans', label: 'Plans & pricing', icon: '💳' },
-  { href: '/audit', label: 'Audit log', icon: '📜', owner: true },
+  { href: '/', label: 'Overview', icon: LayoutDashboard },
+  { href: '/tenants', label: 'Stores', icon: Store },
+  { href: '/plans', label: 'Plans & pricing', icon: CreditCard },
+  { href: '/audit', label: 'Audit log', icon: ScrollText, owner: true },
 ];
 
 export function OpsShell({ children }: { children: ReactNode }) {
@@ -27,15 +28,15 @@ export function OpsShell({ children }: { children: ReactNode }) {
     <RoleCtx.Provider value={role}>
       <div className="shell">
         <aside className="sidebar">
-          <div className="logo">Quick<span>Store</span> Ops</div>
+          <div className="logo"><ShieldCheck size={18} /> Quick<span>Store</span> Ops</div>
           {NAV.filter((n) => !n.owner || role === 'owner').map((n) => (
             <Link key={n.href} href={n.href} className={(n.href === '/' ? path === '/' : path.startsWith(n.href)) ? 'active' : ''}>
-              <span aria-hidden>{n.icon}</span>{n.label}
+              <n.icon size={17} />{n.label}
             </Link>
           ))}
           <div className="bottom">
             <div className="sep">Role: {role}</div>
-            <a href="#" onClick={async (e) => { e.preventDefault(); await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/login'); }}>↩ Sign out</a>
+            <a href="#" onClick={async (e) => { e.preventDefault(); await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/login'); }}><LogOut size={16} /> Sign out</a>
           </div>
         </aside>
         <div className="main">{children}</div>

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import type { Menu, Section, StoreData } from '@/lib/types';
+import { catalogPath, DEFAULT_VOCAB, type Menu, type Section, type StoreData } from '@/lib/types';
 import { ProductCard } from './ProductCard';
 
 /**
@@ -18,7 +18,9 @@ function Announcement({ props }: SectionProps) {
   return text ? <div className="announcement">{text}</div> : null;
 }
 
-function HeroBanner({ props }: SectionProps) {
+const vocabOf = (data: StoreData) => data.store.vocab ?? DEFAULT_VOCAB;
+
+function HeroBanner({ props, data }: SectionProps) {
   const image = str(props.image);
   return (
     <section
@@ -28,23 +30,39 @@ function HeroBanner({ props }: SectionProps) {
       <div className="container inner">
         <h1>{str(props.title, 'Order online')}</h1>
         {str(props.subtitle) && <p>{str(props.subtitle)}</p>}
-        <Link className="btn" href="/menu">{str(props.cta, 'Order now')}</Link>
+        <Link className="btn" href={catalogPath(vocabOf(data))}>{str(props.cta, vocabOf(data).cta)}</Link>
       </div>
     </section>
   );
 }
 
-function CategoryStrip({ props, menu }: SectionProps) {
+function CategoryStrip({ props, menu, data }: SectionProps) {
   if (!menu.categories.length) return null;
+  const base = catalogPath(vocabOf(data));
+  const withImages = menu.categories.some((c) => c.image);
   return (
     <section className="section" style={{ paddingBottom: 0 }}>
       <div className="container">
         {str(props.title) && <h2 className="section-title">{str(props.title)}</h2>}
-        <nav className="cat-strip" aria-label="Categories">
-          {menu.categories.map((c) => (
-            <Link key={c._id} href={`/menu#${c.slug}`}>{c.name}</Link>
-          ))}
-        </nav>
+        {withImages ? (
+          <nav className="cat-tiles" aria-label={vocabOf(data).categories}>
+            {menu.categories.map((c) => (
+              <Link key={c._id} href={`${base}#${c.slug}`} className="cat-tile">
+                <span className="cat-img">{c.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={c.image} alt="" loading="lazy" />
+                ) : null}</span>
+                <span>{c.name}</span>
+              </Link>
+            ))}
+          </nav>
+        ) : (
+          <nav className="cat-strip" aria-label={vocabOf(data).categories}>
+            {menu.categories.map((c) => (
+              <Link key={c._id} href={`${base}#${c.slug}`}>{c.name}</Link>
+            ))}
+          </nav>
+        )}
       </div>
     </section>
   );
@@ -66,7 +84,7 @@ function FeaturedProducts({ props, menu }: SectionProps) {
   );
 }
 
-function MenuGrid({ props, menu }: SectionProps) {
+function MenuGrid({ props, menu, data }: SectionProps) {
   const cols = Math.min(Math.max(num(props.columns, 3), 1), 4);
   const byCat = menu.categories
     .map((c) => ({ c, items: menu.items.filter((i) => i.categoryId === c._id) }))
@@ -76,9 +94,9 @@ function MenuGrid({ props, menu }: SectionProps) {
     <section className="section">
       <div className="container">
         <div className="row" style={{ marginBottom: 8 }}>
-          <h2 className="section-title" style={{ margin: 0 }}>{str(props.title, 'Menu')}</h2>
+          <h2 className="section-title" style={{ margin: 0 }}>{str(props.title, vocabOf(data).catalog)}</h2>
           <span className="spacer" />
-          <Link href="/menu" className="btn btn-outline btn-sm">See full menu</Link>
+          <Link href={catalogPath(vocabOf(data))} className="btn btn-outline btn-sm">See all</Link>
         </div>
         {byCat.slice(0, num(props.categories, 3)).map(({ c, items }) => (
           <div key={c._id} style={{ marginTop: 20 }}>

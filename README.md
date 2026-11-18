@@ -1,7 +1,7 @@
 # QuickStore: multi-tenant e-commerce webapp builder
 
-A restaurant, shop or service business signs up, picks a template, and has a branded ordering
-website live in minutes. One codebase serves every store; each store's look, menu and features come
+A shop, grocery, restaurant, café, pharmacy or salon signs up, picks a template made for its
+business type, and has a branded online store live in minutes. One codebase serves every store; each store's look, menu and features come
 from its configuration in MongoDB.
 
 This repository implements **Phase 0 (Foundations) + Phase 1 (Restaurant MVP)** of the product &
@@ -73,6 +73,25 @@ Chrome and Firefox resolve `*.localhost` to your machine automatically, so every
 
 ## What's included
 
+**For every kind of business.** Wording adapts to the business type: a fashion store sees
+"Products / Collections / Options", a restaurant sees "Menu / Categories / Add-ons", and a salon sees
+"Services". There are six templates with sample catalogues: Modern Retail (with sizes), Fresh Market,
+Beauty Studio, Bold Fast-Food, Elegant Dine-In and Minimal Café.
+
+**Selling tools.** Product variants (size/colour/weight, each with its own price); drag-and-drop image
+uploads with an image library, stored in MongoDB; discount codes (percentage, fixed amount, free
+delivery, with minimum order, dates, usage limits, first-order-only and once-per-customer rules);
+spreadsheet (CSV) import/export of products; sales reports (by day, product, hour, order type and
+discount code, plus returning-customer rate); QR code and WhatsApp sharing; shareable product pages
+for search engines.
+
+**Easier admin.**
+- Ctrl+K search to jump to any page or action, and a live new-orders badge in the sidebar.
+- Order details open in a side panel, with Call and WhatsApp buttons.
+- In-app confirmation dialogs, loading placeholders, and helpful empty states.
+- A Home dashboard with a setup checklist, recent orders and low-stock alerts.
+
+
 **Storefront.** Hostname → tenant routing; theme tokens become CSS variables (colours, curated font
 pairs, radius, button style, custom CSS); section registry (hero, announcement, category strip,
 featured items, menu grid, about, branches, text). Also: menu with sticky category tabs, scroll-spy and
@@ -135,12 +154,13 @@ docker run -d -p 127.0.0.1:27017:27017 mongo:7.0
 MONGODB_TEST_URI=mongodb://127.0.0.1:27017 npm test
 ```
 
-There are 33 API tests. They cover:
+There are 41 API tests. They cover:
 - cross-tenant reads and writes (they return 404), operator injection, and `$lookup` scoping;
 - signup → publish → order → fulfilment, server-side pricing, idempotency, and stock under concurrent
   orders;
 - plan limits, feature dependencies, staff roles, refresh-token reuse detection;
-- Super Admin TOTP login and suspension, plus RFC 6238 TOTP test vectors.
+- Super Admin TOTP login and suspension, plus RFC 6238 TOTP test vectors;
+- uploads (only real images, kept separate per store), CSV import/export, discount codes and reports.
 
 Without `MONGODB_TEST_URI`, the tests download an in-memory MongoDB instead. CI
 (`.github/workflows/ci.yml`) runs type-checks, the tests and production builds of all three Next.js apps.
@@ -156,8 +176,8 @@ Without `MONGODB_TEST_URI`, the tests download an in-memory MongoDB instead. CI
 
 ## Not built yet (later phases of the plan)
 
-Online payments and gateway webhooks, custom domains, coupons, customer accounts / OTP login, delivery
+Online payments and gateway webhooks, custom domains, customer accounts / OTP login, delivery
 zones drawn as polygons, kitchen display, riders and live map, loyalty, reviews, reservations,
 WhatsApp/SMS providers (notifications currently log to the console behind a `Notifier` interface),
-image upload (image URLs for now), AI menu import, subscription billing, Urdu UI. These features appear
+AI menu import, subscription billing, Urdu UI. These features appear
 in the admin as "Coming soon", and the plan already describes where each one plugs in.

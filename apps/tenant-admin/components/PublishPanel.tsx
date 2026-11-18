@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { api, storeUrl } from '@/lib/client';
 import { useMe } from './Shell';
 import { useLoad, useToast } from './ui';
+import { Check, Rocket } from 'lucide-react';
 
 const LINKS: Record<string, string> = {
   logo: '/design', category: '/menu', product: '/menu', branch: '/branches', fulfilment: '/features', payment: '/features',
@@ -12,7 +13,7 @@ const LINKS: Record<string, string> = {
 
 /** Plan §11.2: readiness checklist → publish → live URL with share links. */
 export function PublishPanel({ onPublished }: { onPublished?: () => void }) {
-  const { me, reload, can } = useMe();
+  const { me, reload, can, v } = useMe();
   const toast = useToast();
   const ready = useLoad(() => api<{ ready: boolean; checks: { key: string; label: string; ok: boolean; required: boolean }[] }>('site-config/readiness'));
   const [busy, setBusy] = useState(false);
@@ -42,14 +43,14 @@ export function PublishPanel({ onPublished }: { onPublished?: () => void }) {
         <h2 style={{ margin: 0 }}>{me.tenant.status === 'active' ? 'Publish your latest changes' : 'Go live'}</h2>
         <span className="spacer" />
         {can('site.publish') && (
-          <button className="btn btn-lg" disabled={busy || !ready.data?.ready} onClick={publish}>{busy ? 'Publishing…' : 'Publish'}</button>
+          <button className="btn btn-lg" disabled={busy || !ready.data?.ready} onClick={publish}><Rocket size={16} /> {busy ? 'Publishing…' : 'Publish'}</button>
         )}
       </div>
       <ul className="check-list">
         {ready.data?.checks.map((c) => (
           <li key={c.key}>
-            <span className={`check${c.ok ? ' done' : ''}`} aria-hidden>{c.ok ? '✓' : ''}</span>
-            <span style={{ flex: 1 }}>{c.label}{!c.required && <span className="muted small"> (recommended)</span>}</span>
+            <span className={`check${c.ok ? ' done' : ''}`} aria-hidden>{c.ok && <Check size={13} strokeWidth={3} />}</span>
+            <span style={{ flex: 1 }}>{c.label.replace('item', v.item.toLowerCase())}{!c.required && <span className="muted small"> (recommended)</span>}</span>
             {!c.ok && <Link className="btn btn-secondary btn-sm" href={LINKS[c.key] ?? '/'}>Fix</Link>}
           </li>
         ))}

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { authCall } from '@/lib/client';
+import { Store } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,8 +29,9 @@ export default function LoginPage() {
   return (
     <main className="auth">
       <form className="card stack" onSubmit={submit}>
-        <div className="brand">Quick<span>Store</span></div>
-        <h1>Log in to your store</h1>
+        <div className="brand"><span className="logo-mark"><Store size={16} /></span> QuickStore</div>
+        <h1>Welcome back</h1>
+        <p className="muted" style={{ marginTop: -4 }}>Log in to manage your store.</p>
         {error && <div className="alert" role="alert">{error}</div>}
         <div className="field">
           <label htmlFor="store">Website address</label>

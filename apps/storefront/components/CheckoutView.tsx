@@ -7,6 +7,8 @@ import { money } from '@/lib/format';
 import { useStore } from './StoreProvider';
 
 interface Quote {
+  coupon?: { code: string; label: string; discount: number };
+  couponError?: string;
   lines: { name: string; quantity: number; lineTotal: number; modifiers: { name: string }[] }[];
   totals: { subtotal: number; deliveryFee: number; discount: number; tax: number; total: number };
   branch: { name: string; prepTimeMins?: number };
@@ -15,7 +17,7 @@ interface Quote {
 const SAVED = 'qs-customer';
 
 export function CheckoutView() {
-  const { cart, data, setMode, setBranch, clear, feature } = useStore();
+  const { cart, data, setMode, setBranch, clear, feature, v, catalogHref } = useStore();
   const router = useRouter();
   const cur = data.store.currency;
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -24,6 +26,8 @@ export function CheckoutView() {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', address: '', notes: '' });
   const idemKey = useRef<string>('');
+  const [couponInput, setCouponInput] = useState('');
+  const [coupon, setCoupon] = useState('');
 
   useEffect(() => {
     try {
@@ -37,7 +41,10 @@ export function CheckoutView() {
   const payload = {
     type: cart.mode,
     branchId: cart.branchId,
-    items: cart.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, modifiers: l.modifiers.length ? l.modifiers : undefined })),
+    items: cart.lines.map((l) => ({
+      productId: l.productId, quantity: l.quantity, ...(l.variantId ? { variantId: l.variantId } : {}), modifiers: l.modifiers.length ? l.modifiers : undefined,
+    })),
+    ...(coupon ? { couponCode: coupon } : {}),
   };
   const payloadKey = JSON.stringify(payload);
 
@@ -77,6 +84,7 @@ export function CheckoutView() {
           },
           notes: form.notes.trim() || undefined,
           paymentMethod: 'cod',
+          ...(quote?.coupon ? { couponCode: quote.coupon.code } : {}),
         }),
       });
       const body = await res.json();
@@ -102,7 +110,7 @@ export function CheckoutView() {
     return (
       <div className="container empty">
         <h1>Your cart is empty</h1>
-        <Link className="btn" href="/menu">Browse the menu</Link>
+        <Link className="btn" href={catalogHref}>Browse {v.catalog.toLowerCase()}</Link>
       </div>
     );
   }
@@ -118,7 +126,7 @@ export function CheckoutView() {
           <div className="seg" role="group" aria-label="Delivery or pickup">
             {modes.map((m) => (
               <button type="button" key={m} aria-pressed={cart.mode === m} onClick={() => setMode(m)}>
-                {m === 'delivery' ? 'Delivery' : 'Pickup'}
+                {m === 'delivery' ? 'Delivery' : v.pickup}
               </button>
             ))}
           </div>
@@ -174,11 +182,31 @@ export function CheckoutView() {
             <span>{money(l.unitPrice * l.quantity, cur)}</span>
           </div>
         ))}
+        {feature('coupons') && (
+          <div className="coupon-box">
+            {quote?.coupon ? (
+              <div className="row small">
+                <span className="coupon-applied">{quote.coupon.code}: {quote.coupon.label}</span>
+                <span className="spacer" />
+                <button type="button" className="link-btn" onClick={() => { setCoupon(''); setCouponInput(''); }}>Remove</button>
+              </div>
+            ) : (
+              <div className="row nowrap">
+                <input className="input" placeholder="Discount code" aria-label="Discount code" value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setCoupon(couponInput.trim()); } }} />
+                <button type="button" className="btn btn-outline" disabled={!couponInput.trim()} onClick={() => setCoupon(couponInput.trim())}>Apply</button>
+              </div>
+            )}
+            {coupon && quote?.couponError && <div className="small" style={{ color: '#B42318', marginTop: 6 }}>{quote.couponError}</div>}
+          </div>
+        )}
         {quoteError && <div className="alert" role="alert">{quoteError}</div>}
         {quote && (
           <div className="totals">
             <div><span>Subtotal</span><span>{money(quote.totals.subtotal, cur)}</span></div>
             {cart.mode === 'delivery' && <div><span>Delivery fee</span><span>{quote.totals.deliveryFee ? money(quote.totals.deliveryFee, cur) : 'Free'}</span></div>}
+            {quote.totals.discount > 0 && <div className="discount"><span>Discount ({quote.coupon?.code})</span><span>−{money(quote.totals.discount, cur)}</span></div>}
             {quote.totals.tax > 0 && <div><span>Tax</span><span>{money(quote.totals.tax, cur)}</span></div>}
             <div className="grand"><span>Total</span><span>{money(quote.totals.total, cur)}</span></div>
           </div>

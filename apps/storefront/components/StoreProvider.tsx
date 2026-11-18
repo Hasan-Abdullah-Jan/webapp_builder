@@ -1,11 +1,14 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { StoreData } from '@/lib/types';
+import { catalogPath, DEFAULT_VOCAB, type StoreData, type Vocab } from '@/lib/types';
 
 export interface CartLine {
   key: string;
   productId: string;
+  variantId?: string;
+  variantName?: string;
+  image?: string;
   name: string;
   unitPrice: number; // display estimate; the server recalculates every price at checkout
   quantity: number;
@@ -34,6 +37,9 @@ interface Ctx {
   drawerOpen: boolean;
   openDrawer: (open: boolean) => void;
   feature: (key: string) => boolean;
+  /** Wording for this business type (Menu/Shop/Services...). */
+  v: Vocab;
+  catalogHref: string;
 }
 
 const StoreCtx = createContext<Ctx | null>(null);
@@ -45,7 +51,7 @@ export function useStore() {
 }
 
 const lineKey = (l: Omit<CartLine, 'key'>) =>
-  l.productId + '|' + l.modifiers.map((m) => `${m.groupId}:${[...m.optionIds].sort().join(',')}`).sort().join(';');
+  l.productId + '|' + (l.variantId ?? '') + '|' + l.modifiers.map((m) => `${m.groupId}:${[...m.optionIds].sort().join(',')}`).sort().join(';');
 
 function loadCart(slug: string): CartState | null {
   try {
@@ -116,6 +122,8 @@ export function StoreProvider({ data, children }: { data: StoreData; children: R
       drawerOpen,
       openDrawer,
       feature: (key) => Boolean(data.config.features?.[key]?.enabled),
+      v: data.store.vocab ?? DEFAULT_VOCAB,
+      catalogHref: catalogPath(data.store.vocab ?? DEFAULT_VOCAB),
     }),
     [data, cart, add, setQty, drawerOpen],
   );
