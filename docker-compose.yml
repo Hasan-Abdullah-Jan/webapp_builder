@@ -1,0 +1,12 @@
+# Local development dependencies. The apps run with `npm run dev:*` on the host.
+#   docker compose up -d
+# Then set MONGODB_URI=mongodb://127.0.0.1:27017 in .env (or keep your Atlas URI).
+services:
+  mongo:
+    image: mongo:7.0
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo-data:/data/db
+volumes:
+  mongo-data:

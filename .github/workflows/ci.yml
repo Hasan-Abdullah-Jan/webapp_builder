@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type-check all apps
+        run: npm run typecheck
+      - name: API tests (incl. cross-tenant isolation)
+        run: npm test
+        env:
+          MONGODB_TEST_URI: mongodb://127.0.0.1:27017
+      - name: Build Next.js apps
+        run: |
+          npm run build -w @quickstore/storefront
+          npm run build -w @quickstore/tenant-admin
+          npm run build -w @quickstore/super-admin
+        env:
+          NEXT_TELEMETRY_DISABLED: 1

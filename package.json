@@ -7,10 +7,18 @@
   ],
   "scripts": {
     "dev:api": "npm run dev -w @quickstore/api",
+    "dev:storefront": "npm run dev -w @quickstore/storefront",
+    "dev:admin": "npm run dev -w @quickstore/tenant-admin",
+    "dev:ops": "npm run dev -w @quickstore/super-admin",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
     "test": "npm test -w @quickstore/api",
     "db:check": "npm run db:check -w @quickstore/api",
     "db:indexes": "npm run db:indexes -w @quickstore/api",
     "seed:demo": "npm run seed:demo -w @quickstore/api",
     "platform:admin": "npm run platform:admin -w @quickstore/api --"
+  },
+  "engines": {
+    "node": ">=20.11"
   }
 }

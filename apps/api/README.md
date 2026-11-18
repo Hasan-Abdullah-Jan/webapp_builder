@@ -26,15 +26,21 @@ Node.js + TypeScript + Mongoose API backed by MongoDB Atlas. Follows the plan's
 
 ## Collections
 
-Platform: `tenants`, `domains`. Tenant: `users`, `roles`, `siteConfigs`, `branches`, `categories`,
-`products`, `customers`, `orders`, `counters`.
+Platform: `tenants`, `domains`, `plans`, `platformUsers`, `sessions`, `auditLogs`.
+Tenant-scoped: `users`, `roles`, `siteConfigs`, `branches`, `categories`, `products`, `modifierGroups`,
+`customers`, `orders`, `counters`.
 
-## Endpoints
+## API surfaces
 
-`/v1/admin/{categories,products,branches,customers}` provide full CRUD with cursor pagination
-(`?limit=&cursor=&q=`), `GET /v1/admin/orders[/:id]`, `PATCH /v1/admin/orders/:id/status`,
-`GET|PATCH /v1/admin/site-config/draft`, `POST /v1/admin/site-config/publish` (`{fromVersion}` = rollback),
-`GET /v1/admin/site-config/versions`, and `GET /v1/store/config` (by Host).
+| Base path | Auth | Used by |
+| --- | --- | --- |
+| `/v1/auth/*` | none (rate-limited) | signup, login, refresh, logout, slug check |
+| `/v1/public/*` | none | wizard templates and options |
+| `/v1/admin/*` | staff JWT; tenant from token; role permissions | Tenant Admin |
+| `/v1/store/*` | tenant from `X-Store-Host`; preview token for drafts | Storefront |
+| `/v1/platform/*` | platform JWT (TOTP at login); optional IP allow-list | Super Admin |
+
+Scripts: `db:check`, `db:indexes`, `seed:demo`, `platform:admin`.
 
 ## Tests
 
