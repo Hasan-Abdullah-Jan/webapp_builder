@@ -39,7 +39,7 @@ export async function storeApi<T>(
       ? { cache: 'no-store' as const }
       : init.previewToken || init.revalidate === 0
         ? { cache: 'no-store' as const }
-        : { next: { revalidate: init.revalidate ?? 15, tags: [`store:${host}`] } }),
+        : { next: { revalidate: init.revalidate ?? 15, tags: [`store:${host.split(':')[0]}`] } }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, body);

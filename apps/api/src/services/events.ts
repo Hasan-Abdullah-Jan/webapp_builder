@@ -10,6 +10,7 @@ export interface DomainEvents {
   'order.status_changed': { tenantId: string; orderId: string; orderNo: number; status: string; branchId?: string };
   'tenant.created': { tenantId: string; slug: string };
   'site.published': { tenantId: string; version: number };
+  'tenant.status_changed': { tenantId: string; status: string };
 }
 
 class Bus extends EventEmitter {

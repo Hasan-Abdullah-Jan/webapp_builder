@@ -4,6 +4,7 @@ import { AuditLog, Domain, Order, Plan, Product, Branch, Tenant, User, audit } f
 import { runAsPlatform, runWithTenant } from '../db/tenantContext';
 import { badRequest, notFound } from './errors';
 import { revokeAllForUser } from './tokens';
+import { bus } from './events';
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -98,6 +99,7 @@ export async function setTenantStatus(id: string, status: 'suspended' | 'active'
     for (const u of staff) await revokeAllForUser(u._id);
   }
   await audit({ tenantId, actorType: 'platform', actorId, action: `tenant.${status === 'suspended' ? 'suspend' : 'reactivate'}`, meta: { reason } });
+  bus.emitEvent('tenant.status_changed', { tenantId: String(tenantId), status });
   return { status };
 }
 
