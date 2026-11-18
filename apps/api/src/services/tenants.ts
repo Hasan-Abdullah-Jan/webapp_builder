@@ -117,7 +117,7 @@ export async function provisionTenant(input: unknown) {
         layout: tpl.layout,
         features: defaultFeatures(data.businessType),
         seo: { title: data.name, description: `Order online from ${data.name}` },
-        settings: { taxPercent: 0, currencySymbol: 'Rs.' },
+        settings: { taxPercent: 0 },
       });
       if (data.sampleData) await cloneSampleCatalog(tpl.key);
       return user._id;

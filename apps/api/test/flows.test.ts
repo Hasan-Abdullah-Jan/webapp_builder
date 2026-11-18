@@ -63,6 +63,9 @@ describe('signup → build → publish → order → fulfil', () => {
     const draft = await request(app).get('/v1/admin/site-config/draft').set(auth()).expect(200);
     expect(draft.body.theme.colors.primary).toBe('#E31837');
     expect(draft.body.features.delivery.enabled).toBe(true);
+    // The builder saves the whole draft back; a fresh template draft must round-trip.
+    const { theme, layout, seo, settings } = draft.body;
+    await request(app).patch('/v1/admin/site-config/draft').set(auth()).send({ theme, layout, seo, settings }).expect(200);
   });
 
   it('logs in by store + email, rotates refresh tokens, detects reuse', async () => {

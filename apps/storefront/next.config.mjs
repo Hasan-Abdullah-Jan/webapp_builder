@@ -11,7 +11,7 @@ const nextConfig = {
   reactStrictMode: true,
   async headers() {
     return [
-      { source: '/:path*', headers: [...securityHeaders, { key: 'X-Frame-Options', value: 'SAMEORIGIN' }] },
+      { source: '/((?!preview).*)', headers: [...securityHeaders, { key: 'X-Frame-Options', value: 'SAMEORIGIN' }] },
       // The builder preview is embedded by the Tenant Admin app.
       {
         source: '/preview',
