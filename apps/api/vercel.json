@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
+  "installCommand": "cd ../.. && npm install --workspace=@quickstore/api --include-workspace-root=false",
   "buildCommand": "npm run typecheck",
   "outputDirectory": "public",
   "rewrites": [
