@@ -24,6 +24,11 @@ Browser ──► Next.js server (BFF, httpOnly cookies) ──► API ──►
 Browsers never talk to the API or the database directly. Each Next.js app proxies a fixed set of calls
 server-side.
 
+## Deploying
+
+See **[DEPLOY.md](DEPLOY.md)** for step-by-step Vercel deployment. The API runs as a serverless
+function, and stores work at `your-app.vercel.app/s/<store>` without a custom domain.
+
 ## Run it locally
 
 Requirements: Node 20.11+, and MongoDB (your Atlas cluster, or `docker compose up -d` for a local one).
@@ -84,6 +89,12 @@ delivery, with minimum order, dates, usage limits, first-order-only and once-per
 spreadsheet (CSV) import/export of products; sales reports (by day, product, hour, order type and
 discount code, plus returning-customer rate); QR code and WhatsApp sharing; shareable product pages
 for search engines.
+
+**Accessible, polished UI.** Dialogs, drawers and menus use Headless UI (focus trap, Escape, focus
+return), with a light/dark/system theme on shadcn-style design tokens. Forms show inline errors when
+you leave a field. Bulk actions on products come with Undo. Loading, error and 404 screens are
+included. Every admin page and the storefront are checked at 375, 768, 1024 and 1440px with no
+sideways scrolling.
 
 **Easier admin.**
 - Ctrl+K search to jump to any page or action, and a live new-orders badge in the sidebar.
