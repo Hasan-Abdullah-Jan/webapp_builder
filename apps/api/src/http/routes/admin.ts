@@ -22,6 +22,7 @@ import { THEME_PRESETS, FONT_PAIRS, SECTION_TYPES } from '../../catalog/themes';
 import { TEMPLATES } from '../../catalog/templates';
 import { requirePermission, requireStaff } from '../middleware/auth';
 import { created, wrap } from '../wrap';
+import { badRequest } from '../../services/errors';
 
 function mountCrud(router: Router, path: string, svc: CrudService, read: Permission, write: Permission) {
   router.get(path, requirePermission(read), wrap((req) => svc.list(req.query as Record<string, unknown>)));
@@ -115,6 +116,23 @@ export function adminRouter() {
   }));
   r.post('/products/import', requirePermission('catalog.write'), express.text({ type: ['text/csv', 'text/plain'], limit: '2mb' }),
     wrap((req) => importProductsCsv(req.body)));
+  r.post('/products/bulk', requirePermission('catalog.write'), wrap(async (req) => {
+    const { ids, action, categoryId } = z
+      .object({
+        ids: z.array(z.string().regex(/^[a-f0-9]{24}$/)).min(1).max(500),
+        action: z.enum(['show', 'hide', 'delete', 'move']),
+        categoryId: z.string().regex(/^[a-f0-9]{24}$/).optional(),
+      })
+      .strict()
+      .parse(req.body);
+    const filter = { _id: { $in: ids } };
+    if (action === 'delete') return { affected: (await Product.deleteMany(filter)).deletedCount };
+    if (action === 'move') {
+      if (!categoryId || !(await Category.exists({ _id: categoryId }))) throw badRequest('Choose a collection to move to');
+      return { affected: (await Product.updateMany(filter, { $set: { categoryId } })).modifiedCount };
+    }
+    return { affected: (await Product.updateMany(filter, { $set: { active: action === 'show' } })).modifiedCount };
+  }));
   r.get('/media', requirePermission('catalog.read'), wrap(() => listImages()));
   r.post('/media', requirePermission('catalog.write'), express.raw({ type: () => true, limit: MAX_BYTES + 1024 }),
     created((req) => uploadImage(req.body, String(req.headers['x-filename'] ?? 'image'))));

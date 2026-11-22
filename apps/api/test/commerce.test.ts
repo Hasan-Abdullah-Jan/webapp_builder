@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
-import { MongoMemoryReplSet } from 'mongodb-memory-server';
+import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import { connectToDatabase, disconnectFromDatabase } from '../src/db/connection';
 import { createApp } from '../src/app';
 import { runAsPlatform } from '../src/db/tenantContext';
@@ -117,6 +117,22 @@ describe('CSV import / export', () => {
     // Tenant B's export doesn't include tenant A's products.
     const outB = await request(app).get('/v1/admin/products/export.csv').set(as(B)).expect(200);
     expect(outB.text).not.toContain('Wool Beanie');
+  });
+});
+
+describe('bulk actions', () => {
+  it('hides, moves and deletes many products, only within the tenant', async () => {
+    const list = await request(app).get('/v1/admin/products').set(as(A)).expect(200);
+    const ids = list.body.items.slice(0, 2).map((p: any) => p._id);
+    await request(app).post('/v1/admin/products/bulk').set(as(A)).send({ ids, action: 'hide' }).expect(200, { affected: 2 });
+    const after = await request(app).get('/v1/admin/products?active=false').set(as(A)).expect(200);
+    expect(after.body.items.map((p: any) => p._id).sort()).toEqual([...ids].sort());
+    const cats = await request(app).get('/v1/admin/categories').set(as(A)).expect(200);
+    await request(app).post('/v1/admin/products/bulk').set(as(A)).send({ ids, action: 'move', categoryId: cats.body.items[0]._id }).expect(200);
+    await request(app).post('/v1/admin/products/bulk').set(as(A)).send({ ids, action: 'show' }).expect(200);
+    // Tenant B can't touch tenant A's products.
+    await request(app).post('/v1/admin/products/bulk').set(as(B)).send({ ids, action: 'delete' }).expect(200, { affected: 0 });
+    await request(app).get(`/v1/admin/products/${ids[0]}`).set(as(A)).expect(200);
   });
 });
 

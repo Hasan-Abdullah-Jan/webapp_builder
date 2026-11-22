@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import mongoose, { Types } from 'mongoose';
-import { MongoMemoryReplSet } from 'mongodb-memory-server';
+import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import { connectToDatabase, disconnectFromDatabase } from '../src/db/connection';
 import { createApp } from '../src/app';
 import { signStaffToken } from '../src/http/middleware/auth';

@@ -5,6 +5,7 @@ import { TEMPLATE_MAP } from '../catalog/templates';
 import { SiteConfigPatch } from './validation';
 import { AppError, badRequest, conflict, notFound } from './errors';
 import { bus } from './events';
+import { purgeTenantCache } from './cachePurge';
 import { signAccess } from './tokens';
 
 const SECTIONS = ['theme', 'layout', 'features', 'seo', 'settings'] as const;
@@ -117,6 +118,7 @@ export async function publish(userId?: Types.ObjectId, fromVersion?: number) {
     await audit({
       tenantId, actorType: 'staff', actorId: userId, action: fromVersion ? 'site.rollback' : 'site.publish', target: `v${version}`,
     });
+    await purgeTenantCache(tenantId);
     bus.emitEvent('site.published', { tenantId: String(tenantId), version });
     return published.toObject();
   } catch (err: any) {
