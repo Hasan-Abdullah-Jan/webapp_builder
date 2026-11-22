@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Minus, Plus, Share2, X } from 'lucide-react';
 import type { MenuItem } from '@/lib/types';
 import { initials, money } from '@/lib/format';
@@ -111,20 +112,7 @@ export function ProductOptions({ item, onAdded, inline }: { item: MenuItem; onAd
 }
 
 export function ProductModal({ item, onClose }: { item: MenuItem; onClose: () => void }) {
-  const dialogRef = useRef<HTMLDivElement>(null);
   const { data, href } = useStore();
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', onKey);
-    dialogRef.current?.focus();
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
 
   async function share() {
     const url = `${window.location.origin}${href(`/p/${item.slug}`)}`;
@@ -132,31 +120,34 @@ export function ProductModal({ item, onClose }: { item: MenuItem; onClose: () =>
     else await navigator.clipboard.writeText(url).catch(() => {});
   }
 
+  // Headless UI Dialog: focus moves in, Tab stays inside, Escape closes, focus returns.
   return (
-    <div className="overlay" onClick={onClose} role="presentation">
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="pm-title" tabIndex={-1} ref={dialogRef} onClick={(e) => e.stopPropagation()}>
-        <div className="media" style={{ position: 'relative' }}>
-          {item.images?.[0] ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <div className="placeholder" aria-hidden>{initials(item.name)}</div>
-          )}
-          <button className="close" onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: 12, right: 12 }}><X size={18} /></button>
-        </div>
-        <div className="content" style={{ paddingBottom: 0 }}>
-          <div className="row" style={{ alignItems: 'flex-start' }}>
-            <h2 id="pm-title" style={{ fontSize: 24, flex: 1 }}>{item.name}</h2>
-            {!data.preview && <button className="icon-btn" onClick={share} aria-label="Share"><Share2 size={18} /></button>}
+    <Dialog open onClose={onClose} className="sf-dialog">
+      <div className="overlay">
+        <DialogPanel className="modal">
+          <div className="media" style={{ position: 'relative' }}>
+            {item.images?.[0] ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={item.images[0]} alt={item.name} decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <div className="placeholder" aria-hidden>{initials(item.name)}</div>
+            )}
+            <button className="close" onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: 12, right: 12 }}><X size={18} /></button>
           </div>
-          {item.description && <p className="muted" style={{ marginTop: 0 }}>{item.description}</p>}
-          <p className="price" style={{ fontSize: 18 }}>
-            {item.variants?.length ? `From ${money(Math.min(...item.variants.map((x) => x.price)), data.store.currency)}` : money(item.price, data.store.currency)}
-          </p>
-          {!data.preview && <Link href={href(`/p/${item.slug}`)} className="small muted">View full details</Link>}
-        </div>
-        <ProductOptions item={item} onAdded={onClose} />
+          <div className="content" style={{ paddingBottom: 0 }}>
+            <div className="row" style={{ alignItems: 'flex-start' }}>
+              <DialogTitle as="h2" style={{ fontSize: 24, flex: 1 }}>{item.name}</DialogTitle>
+              {!data.preview && <button className="icon-btn" onClick={share} aria-label="Share"><Share2 size={18} /></button>}
+            </div>
+            {item.description && <p className="muted" style={{ marginTop: 0 }}>{item.description}</p>}
+            <p className="price" style={{ fontSize: 18 }}>
+              {item.variants?.length ? `From ${money(Math.min(...item.variants.map((x) => x.price)), data.store.currency)}` : money(item.price, data.store.currency)}
+            </p>
+            {!data.preview && <Link href={href(`/p/${item.slug}`)} className="small muted">View full details</Link>}
+          </div>
+          <ProductOptions item={item} onAdded={onClose} />
+        </DialogPanel>
       </div>
-    </div>
+    </Dialog>
   );
 }

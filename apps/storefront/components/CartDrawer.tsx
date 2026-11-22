@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { useRouter } from 'next/navigation';
 import { Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { initials, money } from '@/lib/format';
@@ -13,17 +13,12 @@ export function CartDrawer() {
   const freeAbove = Number(data.config.settings?.freeDeliveryAbove ?? 0);
   const toFree = freeAbove > 0 && data.config.features?.delivery?.enabled ? freeAbove - subtotal : 0;
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && openDrawer(false);
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [openDrawer]);
-
   return (
-    <div className="overlay drawer-overlay" onClick={() => openDrawer(false)} role="presentation">
-      <aside className="drawer" role="dialog" aria-modal="true" aria-label="Your cart" onClick={(e) => e.stopPropagation()}>
+    <Dialog open onClose={() => openDrawer(false)} className="sf-dialog">
+      <div className="overlay drawer-overlay">
+      <DialogPanel as="aside" className="drawer" aria-label="Your cart">
         <header>
-          <h2 style={{ margin: 0, fontSize: 20 }}>Your cart</h2>
+          <DialogTitle as="h2" style={{ margin: 0, fontSize: 20 }}>Your cart</DialogTitle>
           <span className="spacer" />
           <button className="close" onClick={() => openDrawer(false)} aria-label="Close cart"><X size={18} /></button>
         </header>
@@ -80,7 +75,8 @@ export function CartDrawer() {
             <button className="btn btn-ghost btn-block" style={{ marginTop: 6 }} onClick={() => openDrawer(false)}>Continue shopping</button>
           </footer>
         )}
-      </aside>
-    </div>
+      </DialogPanel>
+      </div>
+    </Dialog>
   );
 }

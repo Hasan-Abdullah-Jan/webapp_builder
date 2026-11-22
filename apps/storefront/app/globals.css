@@ -253,3 +253,24 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .assurance li::before { content: '✓'; position: absolute; left: 0; color: var(--c-primary); font-weight: 700; }
 .close { display: inline-flex; align-items: center; justify-content: center; }
 .hero h1 { letter-spacing: -0.02em; }
+
+/* ---- v3: a11y + mobile polish ---- */
+.sf-dialog { position: relative; z-index: 50; }
+.price, .totals, .chip-price, .line strong { font-variant-numeric: tabular-nums; }
+@media (max-width: 899px) {
+  /* Product page: keep "Add to cart" reachable while scrolling. */
+  .product-options .actions.inline { position: sticky; bottom: 0; z-index: 6; background: var(--c-bg); padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--c-border); margin-top: 12px; }
+  .product-page ~ .floating-cart, body:has(.product-page) .floating-cart { display: none; }
+}
+.btn:active:not(:disabled), .chip:active, .card:active { transform: scale(.98); }
+a, button, [role="button"], .card, .chip { cursor: pointer; }
+.btn:disabled { opacity: .45; }
+.overlay, .drawer, .modal { overscroll-behavior: contain; }
+.drawer { height: 100dvh; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+.skel { background: linear-gradient(90deg, var(--c-surface) 25%, color-mix(in srgb, var(--c-surface) 60%, var(--c-bg)) 37%, var(--c-surface) 63%); background-size: 400% 100%; animation: skel 1.3s ease infinite; border-radius: var(--radius); }
+@keyframes skel { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+.state-page { min-height: 60dvh; display: grid; place-items: center; text-align: center; padding: 48px 16px; }
+.state-page h1 { font-size: clamp(24px, 4vw, 32px); }
