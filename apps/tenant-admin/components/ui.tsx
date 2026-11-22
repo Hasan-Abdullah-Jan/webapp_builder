@@ -1,30 +1,40 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AlertTriangle, CheckCircle2, ImagePlus, Images, Loader2, X } from 'lucide-react';
+import { Children, cloneElement, isValidElement } from 'react';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import { AlertTriangle, CheckCircle2, ImagePlus, Images, Loader2, MoreHorizontal, X } from 'lucide-react';
 import { api } from '@/lib/client';
 
 // ---------------------------------------------------------------------------
 // Toasts
 // ---------------------------------------------------------------------------
-type ToastItem = { id: number; text: string; kind: 'ok' | 'error' };
-const ToastCtx = createContext<(text: string, kind?: 'ok' | 'error') => void>(() => {});
+type ToastAction = { label: string; onClick: () => void };
+type ToastItem = { id: number; text: string; kind: 'ok' | 'error'; action?: ToastAction };
+type ShowToast = (text: string, kind?: 'ok' | 'error', action?: ToastAction) => void;
+const ToastCtx = createContext<ShowToast>(() => {});
 
+/** Success toasts auto-dismiss (5 s, longer with an Undo); errors stay until closed. */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const show = useCallback((text: string, kind: 'ok' | 'error' = 'ok') => {
+  const dismiss = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
+  const show = useCallback<ShowToast>((text, kind = 'ok', action) => {
     const id = Date.now() + Math.random();
-    setToasts((t) => [...t.slice(-2), { id, text, kind }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), kind === 'error' ? 6000 : 3500);
-  }, []);
+    setToasts((t) => [...t.slice(-2), { id, text, kind, action }]);
+    if (kind === 'ok') setTimeout(() => dismiss(id), action ? 8000 : 4000);
+  }, [dismiss]);
   return (
     <ToastCtx.Provider value={show}>
       {children}
       <div className="toast-wrap" role="status" aria-live="polite">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast${t.kind === 'error' ? ' error' : ''}`}>
+          <div key={t.id} className={`toast${t.kind === 'error' ? ' error' : ''}`} role={t.kind === 'error' ? 'alert' : undefined}>
             {t.kind === 'error' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
-            {t.text}
+            <span style={{ flex: 1 }}>{t.text}</span>
+            {t.action && (
+              <button type="button" className="toast-action" onClick={() => { t.action!.onClick(); dismiss(t.id); }}>{t.action.label}</button>
+            )}
+            <button type="button" className="toast-close" aria-label="Dismiss" onClick={() => dismiss(t.id)}><X size={14} /></button>
           </div>
         ))}
       </div>
@@ -34,50 +44,72 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export const useToast = () => useContext(ToastCtx);
 
 // ---------------------------------------------------------------------------
-// Modal & drawer
+// Modal & drawer (Headless UI Dialog: focus trap, Escape, focus return, scroll lock)
 // ---------------------------------------------------------------------------
 export function Modal({ title, onClose, children, footer, wide, icon }: {
   title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; icon?: ReactNode;
 }) {
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', k);
-    return () => document.removeEventListener('keydown', k);
-  }, [onClose]);
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title} style={wide ? { maxWidth: 860 } : undefined} onMouseDown={(e) => e.stopPropagation()}>
-        <header>
-          {icon}
-          <h2>{title}</h2>
-          <span className="spacer" />
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={onClose} aria-label="Close"><X size={16} /></button>
-        </header>
-        <div className="body">{children}</div>
-        {footer && <footer>{footer}</footer>}
+    <Dialog open onClose={onClose} className="dlg-root">
+      <DialogBackdrop className="dlg-backdrop" />
+      <div className="dlg-wrap">
+        <DialogPanel className="modal" style={wide ? { maxWidth: 860 } : undefined}>
+          <header>
+            {icon}
+            <DialogTitle as="h2">{title}</DialogTitle>
+            <span className="spacer" />
+            <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={onClose} aria-label="Close" data-tip="Close (Esc)"><X size={16} /></button>
+          </header>
+          <div className="body">{children}</div>
+          {footer && <footer>{footer}</footer>}
+        </DialogPanel>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
-export function Drawer({ title, onClose, children, actions }: { title: ReactNode; onClose: () => void; children: ReactNode; actions?: ReactNode }) {
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', k);
-    return () => document.removeEventListener('keydown', k);
-  }, [onClose]);
+export function Drawer({ title, onClose, children, actions, footer }: {
+  title: ReactNode; onClose: () => void; children: ReactNode; actions?: ReactNode; footer?: ReactNode;
+}) {
   return (
-    <div className="modal-overlay drawer-overlay" onMouseDown={onClose}>
-      <aside className="drawer" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
-        <header>
-          <h2 style={{ margin: 0 }}>{title}</h2>
-          <span className="spacer" />
-          {actions}
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={onClose} aria-label="Close"><X size={16} /></button>
-        </header>
-        <div className="body">{children}</div>
-      </aside>
-    </div>
+    <Dialog open onClose={onClose} className="dlg-root">
+      <DialogBackdrop className="dlg-backdrop" />
+      <div className="dlg-wrap right">
+        <DialogPanel className="drawer">
+          <header>
+            <DialogTitle as="h2" style={{ margin: 0 }}>{title}</DialogTitle>
+            <span className="spacer" />
+            {actions}
+            <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={onClose} aria-label="Close" data-tip="Close (Esc)"><X size={16} /></button>
+          </header>
+          <div className="body">{children}</div>
+          {footer && <div className="drawer-footer">{footer}</div>}
+        </DialogPanel>
+      </div>
+    </Dialog>
+  );
+}
+
+/** Row "⋯" menu (Headless UI Menu: arrow keys, type-ahead, Escape). */
+export function ActionMenu({ label, items }: {
+  label: string;
+  items: { label: string; icon?: ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean }[];
+}) {
+  return (
+    <Menu>
+      <MenuButton className="btn btn-ghost btn-icon btn-sm" aria-label={label} data-tip="More actions" onClick={(e) => e.stopPropagation()}>
+        <MoreHorizontal size={16} />
+      </MenuButton>
+      <MenuItems anchor="bottom end" className="menu-pop" onClick={(e) => e.stopPropagation()}>
+        {items.map((it) => (
+          <MenuItem key={it.label} disabled={it.disabled}>
+            <button type="button" className={`menu-item${it.danger ? ' danger' : ''}`} onClick={it.onClick}>
+              {it.icon}{it.label}
+            </button>
+          </MenuItem>
+        ))}
+      </MenuItems>
+    </Menu>
   );
 }
 
@@ -165,14 +197,29 @@ export function useDialog() {
 // ---------------------------------------------------------------------------
 // Form bits
 // ---------------------------------------------------------------------------
-export function Field({ label, hint, children, htmlFor, error }: { label: string; hint?: string; children: ReactNode; htmlFor?: string; error?: string }) {
+export function Field({ label, hint, children, htmlFor, error, required }: {
+  label: string; hint?: string; children: ReactNode; htmlFor?: string; error?: string; required?: boolean;
+}) {
+  const msgId = htmlFor ? `${htmlFor}-msg` : undefined;
+  // Wire the message to the control for screen readers (aria-describedby / aria-invalid).
+  const child = Children.count(children) === 1 && isValidElement(children) && htmlFor && (children.props as { id?: string }).id === htmlFor
+    ? cloneElement(children as React.ReactElement<Record<string, unknown>>, { 'aria-describedby': error || hint ? msgId : undefined, 'aria-invalid': error ? true : undefined })
+    : children;
   return (
-    <div className="field">
-      <label htmlFor={htmlFor}>{label}</label>
-      {children}
-      {error ? <span className="error-text">{error}</span> : hint && <span className="hint">{hint}</span>}
+    <div className={`field${error ? ' has-error' : ''}`}>
+      <label htmlFor={htmlFor}>{label}{required && <span className="req" aria-hidden> *</span>}</label>
+      {child}
+      {error ? <span id={msgId} className="error-text" role="alert">{error}</span> : hint && <span id={msgId} className="hint">{hint}</span>}
     </div>
   );
+}
+
+/** Maps API validation details ([{ path, message }]) to { field: message }. */
+export function fieldErrors(err: unknown): Record<string, string> {
+  const details = (err as { details?: { path?: string; message?: string }[] })?.details;
+  const out: Record<string, string> = {};
+  if (Array.isArray(details)) for (const d of details) if (d?.path && d.message && !out[d.path.split('.')[0]]) out[d.path.split('.')[0]] = d.message;
+  return out;
 }
 
 export function Switch({ checked, onChange, disabled, label }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label: string }) {

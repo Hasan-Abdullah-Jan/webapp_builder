@@ -3,12 +3,13 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  ArrowDown, ArrowUp, Copy, Download, FileSpreadsheet, ImageIcon, Layers, Package, Plus, Search, SlidersHorizontal, Trash2, Upload,
+  ArrowDown, ArrowUp, ChevronDown, ChevronUp, ChevronsUpDown, Copy, Download, Eye, EyeOff, FileSpreadsheet, ImageIcon, Layers, Package, Pencil,
+  Plus, Search, SlidersHorizontal, Trash2, Upload,
 } from 'lucide-react';
 import { api, money, slugify } from '@/lib/client';
 import { useMe } from '@/components/Shell';
 import {
-  Drawer, EmptyState, ErrorBox, Field, ImageUploader, Modal, PageHeader, SkeletonRows, Switch, useDialog, useLoad, useToast,
+  ActionMenu, Drawer, EmptyState, ErrorBox, Field, ImageUploader, Modal, PageHeader, SkeletonRows, Switch, fieldErrors, useDialog, useLoad, useToast,
 } from '@/components/ui';
 
 interface Category { _id: string; name: string; slug: string; sort: number; visible: boolean; image?: string }
@@ -52,12 +53,58 @@ function CatalogInner() {
     }
   }, [params, writable, cats.data, router]);
 
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sort, setSort] = useState<{ key: 'name' | 'category' | 'price' | 'stock'; dir: 1 | -1 }>({ key: 'name', dir: 1 });
+  const [page, setPage] = useState(1);
   const catName = useMemo(() => new Map((cats.data ?? []).map((c) => [c._id, c.name])), [cats.data]);
   const filtered = (prods.data ?? []).filter((p) =>
     (!catFilter || p.categoryId === catFilter) &&
     (!q || p.name.toLowerCase().includes(q.toLowerCase())) &&
     (status === 'all' || (status === 'active' && p.active) || (status === 'hidden' && !p.active) || (status === 'low' && typeof p.stock === 'number' && p.stock <= 5)),
   );
+
+  const sorted = [...filtered].sort((a, b) => {
+    const val = (p: Product): string | number =>
+      sort.key === 'name' ? p.name.toLowerCase() : sort.key === 'category' ? (catName.get(p.categoryId ?? '') ?? '~').toLowerCase()
+        : sort.key === 'price' ? p.basePrice : typeof p.stock === 'number' ? p.stock : Number.MAX_SAFE_INTEGER;
+    const x = val(a);
+    const y = val(b);
+    return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
+  });
+  const PAGE = 25;
+  const pages = Math.max(1, Math.ceil(sorted.length / PAGE));
+  const pageItems = sorted.slice((Math.min(page, pages) - 1) * PAGE, Math.min(page, pages) * PAGE);
+  useEffect(() => setPage(1), [q, catFilter, status, sort]);
+
+  /** Bulk show/hide/move/delete with Undo for show/hide (skill rule: undo for bulk changes). */
+  async function bulk(action: 'show' | 'hide' | 'delete' | 'move', categoryId?: string, only?: string[]) {
+    const ids = only ?? [...selected];
+    if (!ids.length) return;
+    const noun = ids.length === 1 ? v.item.toLowerCase() : v.items.toLowerCase();
+    if (action === 'delete' && !(await dialog.confirm({
+      title: `Delete ${ids.length} ${noun}?`, message: "This can't be undone. Past orders keep their details.", confirmLabel: 'Delete', danger: true,
+    }))) return;
+    const before = new Map((prods.data ?? []).filter((p) => ids.includes(p._id)).map((p) => [p._id, p]));
+    try {
+      const r = await api<{ affected: number }>('products/bulk', { method: 'POST', body: { ids, action, ...(categoryId ? { categoryId } : {}) } });
+      setSelected(new Set());
+      await prods.reload();
+      const verb = action === 'show' ? 'shown' : action === 'hide' ? 'hidden' : action === 'move' ? 'moved' : 'deleted';
+      const undo = action === 'show' || action === 'hide' ? {
+        label: 'Undo',
+        onClick: async () => {
+          const wasVisible = [...before.values()].filter((p) => p.active).map((p) => p._id);
+          const wasHidden = [...before.values()].filter((p) => !p.active).map((p) => p._id);
+          if (wasVisible.length) await api('products/bulk', { method: 'POST', body: { ids: wasVisible, action: 'show' } });
+          if (wasHidden.length) await api('products/bulk', { method: 'POST', body: { ids: wasHidden, action: 'hide' } });
+          prods.reload();
+        },
+      } : undefined;
+      toast(`${r.affected} ${r.affected === 1 ? v.item.toLowerCase() : v.items.toLowerCase()} ${verb}`, 'ok', undo);
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  }
 
   async function quickToggle(p: Product, active: boolean) {
     prods.setData((list) => list?.map((x) => (x._id === p._id ? { ...x, active } : x)) ?? null);
@@ -158,42 +205,103 @@ function CatalogInner() {
               text={prods.data?.length ? 'Try a different search or filter.' : v.emptyCatalog}
               action={writable && !prods.data?.length && <button className="btn" onClick={() => setEditProduct({ active: true })}><Plus size={15} /> Add {v.item.toLowerCase()}</button>} />
           ) : (
-            <div className="table-wrap">
-              <table className="table">
-                <thead><tr><th>{v.item}</th><th>{v.category}</th><th>Price</th><th>Stock</th><th>Visible</th><th /></tr></thead>
-                <tbody>
-                  {filtered.map((p) => (
-                    <tr key={p._id} className="clickable" onClick={() => writable && setEditProduct(p)}>
-                      <td>
-                        <div className="row nowrap">
-                          <div className="thumb">{p.images?.[0] ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.images[0]} alt="" loading="lazy" />
-                          ) : <ImageIcon size={16} />}</div>
-                          <div style={{ minWidth: 0 }}>
-                            <div className="strong">{p.name}</div>
-                            <div className="small muted">
-                              {p.variants?.length ? `${p.variants.length} variants` : ''}
-                              {p.variants?.length && p.tags?.length ? ' · ' : ''}
-                              {p.tags?.join(', ')}
+            <>
+              {selected.size > 0 && (
+                <div className="bulk-bar" role="region" aria-label="Bulk actions">
+                  <span>{selected.size} selected</span>
+                  <button className="btn btn-secondary btn-sm" onClick={() => bulk('show')}><Eye size={14} /> Show</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => bulk('hide')}><EyeOff size={14} /> Hide</button>
+                  <select className="select" style={{ width: 200, height: 30 }} aria-label={`Move to ${v.category.toLowerCase()}`} value=""
+                    onChange={(e) => e.target.value && bulk('move', e.target.value)}>
+                    <option value="">Move to {v.category.toLowerCase()}…</option>
+                    {cats.data?.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+                  </select>
+                  <button className="btn btn-danger btn-sm" onClick={() => bulk('delete')}><Trash2 size={14} /> Delete</button>
+                  <span className="spacer" />
+                  <button className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>Clear</button>
+                </div>
+              )}
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      {writable && (
+                        <th style={{ width: 36 }}>
+                          <input type="checkbox" className="cbx" aria-label="Select all on this page"
+                            checked={pageItems.length > 0 && pageItems.every((p) => selected.has(p._id))}
+                            onChange={(e) => setSelected((cur) => {
+                              const n = new Set(cur);
+                              pageItems.forEach((p) => (e.target.checked ? n.add(p._id) : n.delete(p._id)));
+                              return n;
+                            })} />
+                        </th>
+                      )}
+                      {([['name', v.item], ['category', v.category], ['price', 'Price'], ['stock', 'Stock']] as const).map(([k, label]) => (
+                        <th key={k} aria-sort={sort.key === k ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+                          <button type="button" className="th-sort" onClick={() => setSort((x) => ({ key: k, dir: x.key === k ? (x.dir === 1 ? -1 : 1) : 1 }))}>
+                            {label}{sort.key === k ? (sort.dir === 1 ? <ChevronUp size={13} /> : <ChevronDown size={13} />) : <ChevronsUpDown size={13} style={{ opacity: .4 }} />}
+                          </button>
+                        </th>
+                      ))}
+                      <th>Visible</th>
+                      <th><span className="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((p) => (
+                      <tr key={p._id} className="clickable" onClick={() => writable && setEditProduct(p)}>
+                        {writable && (
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" className="cbx" aria-label={`Select ${p.name}`} checked={selected.has(p._id)}
+                              onChange={(e) => setSelected((cur) => { const n = new Set(cur); if (e.target.checked) n.add(p._id); else n.delete(p._id); return n; })} />
+                          </td>
+                        )}
+                        <td>
+                          <div className="row nowrap">
+                            <div className="thumb">{p.images?.[0] ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={p.images[0]} alt="" loading="lazy" />
+                            ) : <ImageIcon size={16} />}</div>
+                            <div style={{ minWidth: 0 }}>
+                              <div className="strong">{p.name}</div>
+                              <div className="small muted">
+                                {p.variants?.length ? `${p.variants.length} variants` : ''}
+                                {p.variants?.length && p.tags?.length ? ' · ' : ''}
+                                {p.tags?.join(', ')}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="muted">{p.categoryId ? catName.get(p.categoryId) : '—'}</td>
-                      <td className="nowrap">{priceLabel(p)}</td>
-                      <td>{typeof p.stock === 'number' ? (p.stock === 0 ? <span className="pill danger">Sold out</span> : p.stock <= 5 ? <span className="pill warn">{p.stock} left</span> : p.stock) : <span className="faint">Not tracked</span>}</td>
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <Switch label={`${p.name} visible`} checked={p.active} disabled={!writable} onChange={(val) => quickToggle(p, val)} />
-                      </td>
-                      <td className="right" onClick={(e) => e.stopPropagation()}>
-                        {writable && <button className="btn btn-ghost btn-icon btn-sm" title="Duplicate" aria-label={`Duplicate ${p.name}`} onClick={() => duplicate(p)}><Copy size={15} /></button>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        </td>
+                        <td className="muted">{p.categoryId ? catName.get(p.categoryId) : '—'}</td>
+                        <td className="nowrap">{priceLabel(p)}</td>
+                        <td>{typeof p.stock === 'number' ? (p.stock === 0 ? <span className="pill danger">Sold out</span> : p.stock <= 5 ? <span className="pill warn">{p.stock} left</span> : p.stock) : <span className="faint">Not tracked</span>}</td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <Switch label={`${p.name} visible`} checked={p.active} disabled={!writable} onChange={(val) => quickToggle(p, val)} />
+                        </td>
+                        <td className="right" onClick={(e) => e.stopPropagation()}>
+                          {writable && (
+                            <ActionMenu label={`Actions for ${p.name}`} items={[
+                              { label: 'Edit', icon: <Pencil size={14} />, onClick: () => setEditProduct(p) },
+                              { label: 'Duplicate', icon: <Copy size={14} />, onClick: () => duplicate(p) },
+                              { label: p.active ? 'Hide from store' : 'Show on store', icon: p.active ? <EyeOff size={14} /> : <Eye size={14} />, onClick: () => quickToggle(p, !p.active) },
+                              { label: 'Delete', icon: <Trash2 size={14} />, danger: true, onClick: () => { setSelected(new Set([p._id])); void bulk('delete', undefined, [p._id]); } },
+                            ]} />
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {pages > 1 && (
+                <div className="pager">
+                  <span className="small muted">{(page - 1) * PAGE + 1}–{Math.min(page * PAGE, sorted.length)} of {sorted.length}</span>
+                  <span className="spacer" />
+                  <button className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button>
+                  <button className="btn btn-secondary btn-sm" disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

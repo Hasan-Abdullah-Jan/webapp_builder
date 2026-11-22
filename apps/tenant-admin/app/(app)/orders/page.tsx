@@ -275,7 +275,7 @@ export default function OrdersPage() {
 
       {printing && (
         <div className="receipt" style={{ display: 'none' }}>
-          <style>{`@media print { .receipt { display:block !important; width: 72mm; font: 12px/1.35 ui-monospace, monospace; } .modal-overlay { display: none !important; } @page { margin: 4mm; } }`}</style>
+          <style>{`@media print { .receipt { display:block !important; width: 72mm; font: 12px/1.35 ui-monospace, monospace; } .dlg-root { display: none !important; } @page { margin: 4mm; } }`}</style>
           <div style={{ textAlign: 'center', fontWeight: 700 }}>{me.tenant.name}</div>
           <div style={{ textAlign: 'center' }}>Order #{printing.orderNo} · {printing.type}</div>
           <div style={{ textAlign: 'center' }}>{new Date(printing.createdAt).toLocaleString()}</div>

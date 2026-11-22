@@ -13,3 +13,5 @@ coverage/
 # Logs / OS
 *.log
 .DS_Store
+*.tsbuildinfo
+next-env.d.ts.bak

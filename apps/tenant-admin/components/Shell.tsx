@@ -8,7 +8,9 @@ import {
   Plus, Puzzle, Receipt, Rocket, Search, Settings, Store, Users, UserCog, MapPin, type LucideIcon,
 } from 'lucide-react';
 import { api, authCall, storeUrl } from '@/lib/client';
+import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react';
 import { DialogProvider, Modal, Switch, ToastProvider, useToast } from './ui';
+import { ThemeSwitch } from './ThemeSwitch';
 
 export interface Vocab {
   catalog: string; item: string; items: string; category: string; categories: string;
@@ -74,8 +76,10 @@ function CommandPalette({ nav, onClose, v }: { nav: NavItem[]; onClose: () => vo
     it.run();
   }
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal palette" role="dialog" aria-modal="true" aria-label="Search" onMouseDown={(e) => e.stopPropagation()}>
+    <Dialog open onClose={onClose} className="dlg-root">
+      <DialogBackdrop className="dlg-backdrop" />
+      <div className="dlg-wrap">
+      <DialogPanel className="modal palette" aria-label="Search pages and actions">
         <div className="p-input">
           <Search size={18} className="faint" />
           <input autoFocus placeholder="Search pages and actions…" value={q} aria-label="Search pages and actions"
@@ -100,8 +104,9 @@ function CommandPalette({ nav, onClose, v }: { nav: NavItem[]; onClose: () => vo
             </li>
           ))}
         </ul>
+      </DialogPanel>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -182,6 +187,7 @@ function Inner({ me, reload, children }: { me: Me; reload: () => Promise<void>; 
             );
           })}
           <div className="bottom">
+            <div className="row" style={{ padding: '0 8px 10px' }}><span className="small muted">Appearance</span><span className="spacer" /><ThemeSwitch /></div>
             {trialDays !== null && (
               <div className="card" style={{ padding: 12, marginBottom: 10, background: 'var(--brand-soft)', borderColor: '#C7D2FE' }}>
                 <div className="strong small" style={{ color: 'var(--brand-text)' }}>Free trial · {trialDays} days left</div>
