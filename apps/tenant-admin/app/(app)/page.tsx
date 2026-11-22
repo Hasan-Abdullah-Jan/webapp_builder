@@ -63,7 +63,7 @@ export default function Dashboard() {
       <ErrorBox error={error} />
 
       {data && !live && (
-        <div className="card" style={{ marginBottom: 16, borderColor: '#C7D2FE' }}>
+        <div className="card" style={{ marginBottom: 16, borderColor: 'var(--border-strong)' }}>
           <div className="card-head">
             <div>
               <h2>Get your store ready</h2>

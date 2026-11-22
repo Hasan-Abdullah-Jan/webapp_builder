@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Copy, Percent, Plus, Shuffle } from 'lucide-react';
 import { api, money } from '@/lib/client';
 import { useMe } from '@/components/Shell';
-import { EmptyState, ErrorBox, Field, Modal, PageHeader, SkeletonRows, Switch, useDialog, useLoad, useToast } from '@/components/ui';
+import { EmptyState, ErrorBox, Field, Modal, PageHeader, SkeletonRows, Switch, fieldErrors, useDialog, useLoad, useToast } from '@/components/ui';
 
 interface Coupon {
   _id: string; code: string; description?: string; type: 'percent' | 'fixed' | 'free_delivery'; value: number; maxDiscount?: number;
@@ -117,10 +117,19 @@ function CouponForm({ initial, onClose, onSaved, confirmDelete }: { initial: Par
     oncePerCustomer: initial.oncePerCustomer ?? false, firstOrderOnly: initial.firstOrderOnly ?? false, active: initial.active ?? true,
   });
   const [error, setError] = useState('');
+  const [errs, setErrs] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
   const cur = me.tenant.currency === 'PKR' ? 'Rs.' : me.tenant.currency;
 
   async function save() {
     setError('');
+    if (f.code.trim().length < 3) {
+      setErrs({ code: 'Use at least 3 letters or numbers' });
+      document.getElementById('cp-code')?.focus();
+      return;
+    }
+    setErrs({});
+    setBusy(true);
     const common = {
       description: f.description || undefined, minOrder: Number(f.minOrder) || 0, oncePerCustomer: f.oncePerCustomer, firstOrderOnly: f.firstOrderOnly, active: f.active,
     };
@@ -146,7 +155,16 @@ function CouponForm({ initial, onClose, onSaved, confirmDelete }: { initial: Par
       }
       onSaved(`${f.code.toUpperCase()} saved`);
     } catch (e) {
-      setError((e as Error).message);
+      const fe = fieldErrors(e);
+      if ((e as { status?: number }).status === 409) fe.code = 'That code already exists. Try another.';
+      if (Object.keys(fe).length) {
+        setErrs(fe);
+        const first = ['code', 'value', 'endsAt'].find((k) => fe[k]);
+        if (first) document.getElementById({ code: 'cp-code', value: 'cp-val', endsAt: 'cp-end' }[first]!)?.focus();
+      }
+      if (!fe.code && !fe.value && !fe.endsAt) setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
   async function remove() {
@@ -165,13 +183,13 @@ function CouponForm({ initial, onClose, onSaved, confirmDelete }: { initial: Par
       <>
         {!isNew && <button className="btn btn-danger" onClick={remove} style={{ marginRight: 'auto' }}>Delete</button>}
         <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-        <button className="btn" disabled={f.code.trim().length < 3} onClick={save}>{isNew ? 'Create code' : 'Save'}</button>
+        <button className="btn" disabled={busy} onClick={save}>{busy ? 'Saving…' : isNew ? 'Create code' : 'Save'}</button>
       </>
     }>
       <div className="stack">
         <ErrorBox error={error} />
         <div className="grid grid-2">
-          <Field label="Code" htmlFor="cp-code" hint="Letters and numbers, e.g. EID20">
+          <Field label="Code" htmlFor="cp-code" hint="Letters and numbers, e.g. EID20" required error={errs.code}>
             <div className="row nowrap">
               <input id="cp-code" className="input" style={{ textTransform: 'uppercase', fontFamily: 'ui-monospace, monospace' }} disabled={!isNew} maxLength={30} value={f.code}
                 onChange={(e) => setF({ ...f, code: e.target.value.replace(/[^A-Za-z0-9_-]/g, '').toUpperCase() })} />
@@ -190,7 +208,7 @@ function CouponForm({ initial, onClose, onSaved, confirmDelete }: { initial: Par
         </div>
         {f.type !== 'free_delivery' && (
           <div className="grid grid-2">
-            <Field label={f.type === 'percent' ? 'Percent off' : 'Amount off'} htmlFor="cp-val">
+            <Field label={f.type === 'percent' ? 'Percent off' : 'Amount off'} htmlFor="cp-val" required error={errs.value}>
               <div className="input-group">
                 {f.type === 'fixed' && <span className="addon">{cur}</span>}
                 <input id="cp-val" className="input" type="number" min={1} max={f.type === 'percent' ? 100 : undefined} value={f.value} onChange={(e) => setF({ ...f, value: e.target.value })} />
@@ -206,7 +224,7 @@ function CouponForm({ initial, onClose, onSaved, confirmDelete }: { initial: Par
           <Field label="Minimum order" htmlFor="cp-min"><div className="input-group"><span className="addon">{cur}</span><input id="cp-min" className="input" type="number" min={0} value={f.minOrder} onChange={(e) => setF({ ...f, minOrder: e.target.value })} /></div></Field>
           <Field label="Total uses (optional)" htmlFor="cp-lim" hint="Leave empty for unlimited"><input id="cp-lim" className="input" type="number" min={1} value={f.usageLimit} onChange={(e) => setF({ ...f, usageLimit: e.target.value })} /></Field>
           <Field label="Starts (optional)" htmlFor="cp-start"><input id="cp-start" className="input" type="date" value={f.startsAt} onChange={(e) => setF({ ...f, startsAt: e.target.value })} /></Field>
-          <Field label="Ends (optional)" htmlFor="cp-end"><input id="cp-end" className="input" type="date" value={f.endsAt} onChange={(e) => setF({ ...f, endsAt: e.target.value })} /></Field>
+          <Field label="Ends (optional)" htmlFor="cp-end" error={errs.endsAt}><input id="cp-end" className="input" type="date" value={f.endsAt} onChange={(e) => setF({ ...f, endsAt: e.target.value })} /></Field>
         </div>
         <div className="row">
           <label className="checkbox"><input type="checkbox" checked={f.firstOrderOnly} onChange={(e) => setF({ ...f, firstOrderOnly: e.target.checked })} /> First order only</label>

@@ -393,13 +393,29 @@ function ProductEditor({ initial, categories, groups, onClose, onSaved, confirmD
     variants: (initial.variants ?? []).map((x) => ({ name: x.name, price: String(x.price) })),
   });
   const [error, setError] = useState('');
+  const [errs, setErrs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const isNew = !initial._id;
   const hasVariants = f.variants.length > 0;
 
+  /** Client-side checks, run on blur and before saving. */
+  const check = (field: 'name' | 'basePrice', val: typeof f = f) => {
+    if (field === 'name') return val.name.trim() ? '' : `Give your ${v.item.toLowerCase()} a name`;
+    if (val.variants.length) return '';
+    return val.basePrice.trim() === '' ? 'Enter a price (0 if free)' : Number(val.basePrice) < 0 ? "Price can't be negative" : '';
+  };
+  const blur = (field: 'name' | 'basePrice') => setErrs((x) => ({ ...x, [field]: check(field) }));
+
   async function save() {
+    const local = { name: check('name'), basePrice: check('basePrice') };
+    if (local.name || local.basePrice) {
+      setErrs(local);
+      document.getElementById(local.name ? 'p-name' : 'p-price')?.focus();
+      return;
+    }
     setBusy(true);
     setError('');
+    setErrs({});
     const variants = f.variants.filter((x) => x.name.trim()).map((x) => ({ name: x.name.trim(), price: Number(x.price) || 0 }));
     const basePrice = variants.length ? Math.min(...variants.map((x) => x.price)) : Number(f.basePrice);
     const body: Record<string, unknown> = {
@@ -413,7 +429,15 @@ function ProductEditor({ initial, categories, groups, onClose, onSaved, confirmD
       else await api(`products/${initial._id}`, { method: 'PATCH', body });
       onSaved(`${f.name} saved`);
     } catch (e) {
-      setError((e as Error).message);
+      // Show API validation errors next to the field they belong to; keep what was typed.
+      const fe = fieldErrors(e);
+      if ((e as { status?: number }).status === 409) fe.name = `A ${v.item.toLowerCase()} with this name already exists`;
+      if (fe.slug && !fe.name) fe.name = fe.slug;
+      if (Object.keys(fe).length) {
+        setErrs(fe);
+        document.getElementById(fe.name ? 'p-name' : 'p-price')?.focus();
+        if (!fe.name && !fe.basePrice) setError((e as Error).message);
+      } else setError((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -437,8 +461,9 @@ function ProductEditor({ initial, categories, groups, onClose, onSaved, confirmD
       actions={!isNew && <button className="btn btn-ghost btn-icon btn-sm" onClick={remove} aria-label="Delete" title="Delete"><Trash2 size={16} /></button>}>
       <div className="stack">
         <ErrorBox error={error} />
-        <Field label="Name" htmlFor="p-name">
-          <input id="p-name" className="input" maxLength={160} autoFocus value={f.name} onChange={(e) => setF({ ...f, name: e.target.value, slug: isNew ? slugify(e.target.value) : f.slug })} />
+        <Field label="Name" htmlFor="p-name" required error={errs.name}>
+          <input id="p-name" className="input" maxLength={160} autoFocus value={f.name} onBlur={() => blur('name')}
+            onChange={(e) => { setF({ ...f, name: e.target.value, slug: isNew ? slugify(e.target.value) : f.slug }); if (errs.name) setErrs((x) => ({ ...x, name: '' })); }} />
         </Field>
         <ImageUploader label="Photo" value={f.images[0]} onChange={(url) => setF({ ...f, images: url ? [url, ...f.images.slice(1)] : f.images.slice(1) })} hint="Square photos look best." />
         <Field label="Description" htmlFor="p-desc">
@@ -452,14 +477,16 @@ function ProductEditor({ initial, categories, groups, onClose, onSaved, confirmD
             </select>
           </Field>
           {!hasVariants && (
-            <Field label="Price" htmlFor="p-price">
+            <Field label="Price" htmlFor="p-price" required error={errs.basePrice}>
               <div className="input-group"><span className="addon">{me.tenant.currency === 'PKR' ? 'Rs.' : me.tenant.currency}</span>
-                <input id="p-price" className="input" type="number" min={0} step={1} inputMode="numeric" value={f.basePrice} onChange={(e) => setF({ ...f, basePrice: e.target.value })} /></div>
+                <input id="p-price" className="input" type="number" min={0} step={1} inputMode="numeric" value={f.basePrice} onBlur={() => blur('basePrice')}
+                  aria-invalid={errs.basePrice ? true : undefined} aria-describedby={errs.basePrice ? 'p-price-msg' : undefined}
+                  onChange={(e) => { setF({ ...f, basePrice: e.target.value }); if (errs.basePrice) setErrs((x) => ({ ...x, basePrice: '' })); }} /></div>
             </Field>
           )}
         </div>
 
-        <div className="card" style={{ padding: 14, background: '#FBFCFD' }}>
+        <div className="card" style={{ padding: 14, background: 'var(--subtle)' }}>
           <div className="row" style={{ marginBottom: hasVariants ? 10 : 0 }}>
             <div style={{ flex: 1 }}>
               <div className="strong">Variants</div>
@@ -503,7 +530,7 @@ function ProductEditor({ initial, categories, groups, onClose, onSaved, confirmD
         <div className="row" style={{ paddingTop: 8, borderTop: '1px solid var(--border)' }}>
           <span className="spacer" />
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn" disabled={busy || !f.name.trim() || (!hasVariants && f.basePrice === '')} onClick={save}>{busy ? 'Saving…' : 'Save'}</button>
+          <button className="btn" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
     </Drawer>

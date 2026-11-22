@@ -83,37 +83,50 @@ export default function OrdersPage() {
   soundRef.current = sound;
   const cur = me.tenant.currency;
 
-  const load = useCallback(async () => {
+  const seen = useRef<Set<string> | null>(null);
+  const failures = useRef(0);
+
+  /**
+   * Polls the board (works on serverless hosts like Vercel, where a long-lived stream can't
+   * receive events from other instances). New "pending" orders trigger the chime and a toast.
+   */
+  const load = useCallback(async (quiet = false) => {
     try {
       const list = await api<Order[]>('orders/board');
+      const pendingIds = list.filter((o) => o.status === 'pending').map((o) => o._id);
+      if (seen.current) {
+        const fresh = list.filter((o) => o.status === 'pending' && !seen.current!.has(o._id));
+        if (fresh.length) {
+          setFresh((s) => { const n = new Set(s); fresh.forEach((o) => n.add(o._id)); return n; });
+          if (soundRef.current) chime();
+          toast(fresh.length === 1 ? `New order #${fresh[0].orderNo}` : `${fresh.length} new orders`);
+        }
+      }
+      seen.current = new Set([...(seen.current ?? []), ...pendingIds, ...list.map((o) => o._id)]);
       setOrders(list);
       setOpen((o) => (o ? list.find((x) => x._id === o._id) ?? o : o));
+      failures.current = 0;
+      setLive(true);
     } catch (e) {
-      toast((e as Error).message, 'error');
+      failures.current++;
+      if (failures.current >= 2) setLive(false);
+      if (!quiet) toast((e as Error).message, 'error');
     }
   }, [toast]);
 
   useEffect(() => {
     load();
-    const es = new EventSource('/api/proxy/orders/stream');
-    es.onopen = () => setLive(true);
-    es.onerror = () => setLive(false);
-    es.addEventListener('order.created', (e) => {
-      const { orderId, orderNo } = JSON.parse((e as MessageEvent).data);
-      setFresh((s) => new Set(s).add(orderId));
-      if (soundRef.current) chime();
-      toast(`New order #${orderNo}`);
-      load();
-    });
-    es.addEventListener('order.status_changed', () => load());
+    // Check every 5 s while the tab is visible, and right away when it becomes visible again.
+    const poll = setInterval(() => document.visibilityState === 'visible' && load(true), 5000);
+    const onVisible = () => document.visibilityState === 'visible' && load(true);
+    document.addEventListener('visibilitychange', onVisible);
     const clock = setInterval(() => tick((n) => n + 1), 30_000);
-    const fallback = setInterval(load, 60_000);
     return () => {
-      es.close();
+      clearInterval(poll);
       clearInterval(clock);
-      clearInterval(fallback);
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [load, toast]);
+  }, [load]);
 
   async function move(o: Order, status: string, why?: string) {
     try {
@@ -157,7 +170,7 @@ export default function OrdersPage() {
       <div className="no-print">
         <PageHeader
           title="Orders"
-          description={<span className="row" style={{ gap: 6 }}><span className={`pill ${live ? 'ok' : 'warn'}`}><span className="dot" />{live ? 'Live: new orders appear instantly' : 'Reconnecting…'}</span></span>}
+          description={<span className="row" style={{ gap: 6 }}><span className={`pill ${live ? 'ok' : 'warn'}`}><span className="dot" />{live ? 'Live: checking for new orders every few seconds' : 'Connection lost, retrying…'}</span></span>}
           actions={
             <>
               <button className="btn btn-secondary" onClick={() => { setSound(!sound); if (!sound) chime(); }} aria-pressed={sound}>

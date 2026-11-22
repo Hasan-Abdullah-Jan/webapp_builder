@@ -189,13 +189,13 @@ function Inner({ me, reload, children }: { me: Me; reload: () => Promise<void>; 
           <div className="bottom">
             <div className="row" style={{ padding: '0 8px 10px' }}><span className="small muted">Appearance</span><span className="spacer" /><ThemeSwitch /></div>
             {trialDays !== null && (
-              <div className="card" style={{ padding: 12, marginBottom: 10, background: 'var(--brand-soft)', borderColor: '#C7D2FE' }}>
+              <div className="card" style={{ padding: 12, marginBottom: 10, background: 'var(--brand-soft)', borderColor: 'var(--border-strong)' }}>
                 <div className="strong small" style={{ color: 'var(--brand-text)' }}>Free trial · {trialDays} days left</div>
                 <div className="small muted">All Pro features included.</div>
               </div>
             )}
             <div className="row nowrap" style={{ padding: '4px 8px' }}>
-              <div className="store-avatar" style={{ width: 28, height: 28, fontSize: 12, background: '#334155' }} aria-hidden>
+              <div className="store-avatar" style={{ width: 28, height: 28, fontSize: 12, background: 'var(--faint)' }} aria-hidden>
                 {me.user.name.slice(0, 1).toUpperCase()}
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
