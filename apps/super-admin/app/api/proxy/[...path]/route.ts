@@ -1,3 +1,4 @@
+import { withApiErrors } from '@/lib/apiErrors';
 import { NextResponse, type NextRequest } from 'next/server';
 import { API_URL, clearSessionCookies, clientIpHeaders, isSameOrigin, readSession, refreshTokens, setSessionCookies } from '@/lib/session';
 
@@ -31,5 +32,6 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   return out;
 }
 
-export { handle as GET, handle as POST, handle as PATCH };
+const safe = withApiErrors(handle);
+export { safe as GET, safe as POST, safe as PATCH };
 export const dynamic = 'force-dynamic';

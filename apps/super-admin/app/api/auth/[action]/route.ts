@@ -1,7 +1,8 @@
+import { withApiErrors } from '@/lib/apiErrors';
 import { NextResponse, type NextRequest } from 'next/server';
 import { API_URL, clearSessionCookies, clientIpHeaders, isSameOrigin, readSession, setSessionCookies } from '@/lib/session';
 
-export async function POST(req: NextRequest, ctx: { params: Promise<{ action: string }> }) {
+async function post(req: NextRequest, ctx: { params: Promise<{ action: string }> }) {
   const { action } = await ctx.params;
   if (!isSameOrigin(req)) return NextResponse.json({ code: 'FORBIDDEN', message: 'Bad origin' }, { status: 403 });
   if (action === 'logout') {
@@ -30,3 +31,5 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ action: st
   setSessionCookies(res, data);
   return res;
 }
+
+export const POST = withApiErrors(post);

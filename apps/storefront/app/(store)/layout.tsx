@@ -7,7 +7,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const data = await getStore();
+  const data = await getStore().catch(() => null);
   if (!data) return { title: 'Store not found', robots: { index: false } };
   const seo = data.config.seo ?? {};
   return {
@@ -24,7 +24,21 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function StoreLayout({ children }: { children: ReactNode }) {
-  const data = await getStore();
+  let data: Awaited<ReturnType<typeof getStore>>;
+  try {
+    data = await getStore();
+  } catch (err) {
+    // API down or API_URL not set: explain instead of crashing.
+    console.error('[storefront] API unreachable:', (err as Error).message);
+    return (
+      <main className="empty" style={{ fontFamily: 'system-ui, sans-serif', padding: '96px 16px' }}>
+        <h1 style={{ fontSize: 26 }}>This store can&apos;t load right now</h1>
+        <p style={{ color: '#666', maxWidth: 460, margin: '0 auto' }}>
+          The store&apos;s server isn&apos;t responding. If you run this site: start the API (<code>npm run dev:api</code>) or set <code>API_URL</code>.
+        </p>
+      </main>
+    );
+  }
   if (!data) {
     // Plan §3.3 step 7: unknown, unpublished or suspended hosts get a friendly page.
     return (

@@ -1,8 +1,9 @@
+import { withApiErrors } from '@/lib/apiErrors';
 import { NextResponse, type NextRequest } from 'next/server';
 import { API_URL, clearSessionCookies, isSameOrigin, readSession, setSessionCookies } from '@/lib/session';
 
 /** Login / signup / logout: exchanges credentials for tokens and stores them in httpOnly cookies. */
-export async function POST(req: NextRequest, ctx: { params: Promise<{ action: string }> }) {
+async function post(req: NextRequest, ctx: { params: Promise<{ action: string }> }) {
   const { action } = await ctx.params;
   if (!isSameOrigin(req)) return NextResponse.json({ code: 'FORBIDDEN', message: 'Bad origin' }, { status: 403 });
 
@@ -37,3 +38,5 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ action: st
   setSessionCookies(res, data);
   return res;
 }
+
+export const POST = withApiErrors(post);

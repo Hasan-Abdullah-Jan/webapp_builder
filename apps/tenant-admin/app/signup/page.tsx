@@ -48,15 +48,16 @@ export default function SignupPage() {
   useEffect(() => {
     setSlugOk(null);
     if (slug.length < 3) return;
-    const t = setTimeout(() => publicApi(`slug-available?slug=${encodeURIComponent(slug)}`).then((r) => setSlugOk(Boolean(r.available))), 350);
+    const t = setTimeout(() => publicApi(`slug-available?slug=${encodeURIComponent(slug)}`).then((r) => setSlugOk(Boolean(r.available))).catch((e) => setError(e.message)), 350);
     return () => clearTimeout(t);
   }, [slug]);
 
   useEffect(() => {
     publicApi<Template[]>(`templates?businessType=${type}`).then((t) => {
+      setError('');
       setTemplates(t);
       setTemplateKey((k) => (t.some((x) => x.key === k) ? k : t[0]?.key ?? ''));
-    });
+    }).catch((e) => setError(e.message));
   }, [type]);
 
   async function create(e: React.FormEvent) {

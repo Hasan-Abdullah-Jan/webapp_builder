@@ -31,7 +31,9 @@ export async function api<T = any>(path: string, init: { method?: string; body?:
 
 export async function publicApi<T = any>(path: string): Promise<T> {
   const res = await fetch(`/api/public/${path}`, { cache: 'no-store' });
-  return res.json();
+  const body = await res.json().catch(() => ({ message: 'The server returned an empty response' }));
+  if (!res.ok) throw new ApiError(res.status, body.code ?? 'ERROR', body.message ?? 'Something went wrong');
+  return body as T;
 }
 
 export async function authCall(action: 'login' | 'signup' | 'logout', body?: unknown) {

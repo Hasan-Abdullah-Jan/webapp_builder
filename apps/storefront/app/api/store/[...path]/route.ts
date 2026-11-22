@@ -1,3 +1,4 @@
+import { withApiErrors } from '@/lib/apiErrors';
 import { NextResponse, type NextRequest } from 'next/server';
 import { API_URL } from '@/lib/api';
 
@@ -36,4 +37,5 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   return new NextResponse(text, { status: res.status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 }
 
-export { proxy as GET, proxy as POST };
+const safe = withApiErrors(proxy);
+export { safe as GET, safe as POST };
