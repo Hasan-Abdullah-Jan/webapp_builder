@@ -15,6 +15,12 @@ const ADMIN_ORIGIN = process.env.NEXT_PUBLIC_ADMIN_ORIGIN ?? 'http://localhost:3
  * then applies unsaved edits sent by the Tenant Admin via postMessage, so changes show
  * instantly. Clicking a section tells the builder to open that section's settings.
  */
+/** "/s/<slug>" when the preview is opened under a path-based store URL. */
+function pathBase() {
+  if (typeof window === 'undefined') return '';
+  return window.location.pathname.match(/^\/s\/[a-z0-9-]+/)?.[0] ?? '';
+}
+
 export function PreviewApp({ token }: { token: string }) {
   const [data, setData] = useState<StoreData | null>(null);
   const [menu, setMenu] = useState<Menu>({ categories: [], items: [] });
@@ -24,12 +30,12 @@ export function PreviewApp({ token }: { token: string }) {
   useEffect(() => {
     const h = { 'X-Preview-Token': token };
     Promise.all([
-      fetch('/api/store/config', { headers: h, cache: 'no-store' }).then(async (r) => ({ ok: r.ok, body: await r.json() })),
-      fetch('/api/store/menu', { headers: h, cache: 'no-store' }).then((r) => r.json()),
+      fetch(pathBase() + '/api/store/config', { headers: h, cache: 'no-store' }).then(async (r) => ({ ok: r.ok, body: await r.json() })),
+      fetch(pathBase() + '/api/store/menu', { headers: h, cache: 'no-store' }).then((r) => r.json()),
     ])
       .then(([cfg, m]) => {
         if (!cfg.ok) return setError(cfg.body.message ?? 'Preview unavailable');
-        setData(cfg.body);
+        setData({ ...cfg.body, base: pathBase() });
         if (m?.items) setMenu(m);
       })
       .catch(() => setError('Preview unavailable'));
@@ -47,7 +53,7 @@ export function PreviewApp({ token }: { token: string }) {
           document.querySelector(`[data-section="${msg.index}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       } else if (msg?.type === 'qs:reload-menu') {
-        fetch('/api/store/menu', { headers: { 'X-Preview-Token': token }, cache: 'no-store' })
+        fetch(pathBase() + '/api/store/menu', { headers: { 'X-Preview-Token': token }, cache: 'no-store' })
           .then((r) => r.json())
           .then((m) => m?.items && setMenu(m));
       }

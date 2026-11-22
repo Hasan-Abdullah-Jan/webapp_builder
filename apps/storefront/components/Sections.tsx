@@ -30,7 +30,7 @@ function HeroBanner({ props, data }: SectionProps) {
       <div className="container inner">
         <h1>{str(props.title, 'Order online')}</h1>
         {str(props.subtitle) && <p>{str(props.subtitle)}</p>}
-        <Link className="btn" href={catalogPath(vocabOf(data))}>{str(props.cta, vocabOf(data).cta)}</Link>
+        <Link className="btn" href={(data.base ?? '') + catalogPath(vocabOf(data))}>{str(props.cta, vocabOf(data).cta)}</Link>
       </div>
     </section>
   );
@@ -38,7 +38,7 @@ function HeroBanner({ props, data }: SectionProps) {
 
 function CategoryStrip({ props, menu, data }: SectionProps) {
   if (!menu.categories.length) return null;
-  const base = catalogPath(vocabOf(data));
+  const base = (data.base ?? '') + catalogPath(vocabOf(data));
   const withImages = menu.categories.some((c) => c.image);
   return (
     <section className="section" style={{ paddingBottom: 0 }}>
@@ -96,7 +96,7 @@ function MenuGrid({ props, menu, data }: SectionProps) {
         <div className="row" style={{ marginBottom: 8 }}>
           <h2 className="section-title" style={{ margin: 0 }}>{str(props.title, vocabOf(data).catalog)}</h2>
           <span className="spacer" />
-          <Link href={catalogPath(vocabOf(data))} className="btn btn-outline btn-sm">See all</Link>
+          <Link href={(data.base ?? '') + catalogPath(vocabOf(data))} className="btn btn-outline btn-sm">See all</Link>
         </div>
         {byCat.slice(0, num(props.categories, 3)).map(({ c, items }) => (
           <div key={c._id} style={{ marginTop: 20 }}>

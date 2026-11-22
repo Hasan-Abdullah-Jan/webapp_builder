@@ -40,6 +40,8 @@ interface Ctx {
   /** Wording for this business type (Menu/Shop/Services...). */
   v: Vocab;
   catalogHref: string;
+  /** Internal link/URL inside this store (adds /s/<slug> when path-based). */
+  href: (path: string) => string;
 }
 
 const StoreCtx = createContext<Ctx | null>(null);
@@ -123,7 +125,8 @@ export function StoreProvider({ data, children }: { data: StoreData; children: R
       openDrawer,
       feature: (key) => Boolean(data.config.features?.[key]?.enabled),
       v: data.store.vocab ?? DEFAULT_VOCAB,
-      catalogHref: catalogPath(data.store.vocab ?? DEFAULT_VOCAB),
+      catalogHref: (data.base ?? '') + catalogPath(data.store.vocab ?? DEFAULT_VOCAB),
+      href: (path: string) => (data.base ?? '') + path,
     }),
     [data, cart, add, setQty, drawerOpen],
   );

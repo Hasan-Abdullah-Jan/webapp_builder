@@ -62,7 +62,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   return (
     <div className="container product-page">
       <nav className="crumbs" aria-label="Breadcrumb">
-        <Link href={catalogPath(v)}><ChevronLeft size={16} /> {category ? category.name : v.catalog}</Link>
+        <Link href={(data.base ?? '') + catalogPath(v)}><ChevronLeft size={16} /> {category ? category.name : v.catalog}</Link>
       </nav>
       <div className="product-layout">
         <ProductGallery images={item.images ?? []} name={item.name} />

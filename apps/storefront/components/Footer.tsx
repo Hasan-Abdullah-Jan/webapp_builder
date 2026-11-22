@@ -26,8 +26,8 @@ export function Footer({ data }: { data: StoreData }) {
           </div>
           <div>
             <h4>Browse</h4>
-            <p style={{ margin: 0 }}><Link href={catalogPath(data.store.vocab ?? DEFAULT_VOCAB)}>{(data.store.vocab ?? DEFAULT_VOCAB).catalog}</Link></p>
-            <p style={{ margin: '4px 0 0' }}><Link href="/checkout">Checkout</Link></p>
+            <p style={{ margin: 0 }}><Link href={(data.base ?? '') + catalogPath(data.store.vocab ?? DEFAULT_VOCAB)}>{(data.store.vocab ?? DEFAULT_VOCAB).catalog}</Link></p>
+            <p style={{ margin: '4px 0 0' }}><Link href={`${data.base ?? ''}/checkout`}>Checkout</Link></p>
           </div>
           {(s.phone || s.whatsapp || s.instagram || s.facebook) && (
             <div>

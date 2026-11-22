@@ -71,6 +71,8 @@ export interface StoreData {
   config: SiteConfig;
   branches: Branch[];
   preview: boolean;
+  /** "" or "/s/<slug>" when the store is served under a path (e.g. on *.vercel.app). */
+  base?: string;
 }
 
 export interface ModifierOption {

@@ -22,7 +22,7 @@ const FLOW: Record<string, string[]> = {
 };
 
 export function TrackView({ orderId, code }: { orderId: string; code: string }) {
-  const { data } = useStore();
+  const { data, href, catalogHref } = useStore();
   const [order, setOrder] = useState<Tracked | null>(null);
   const [error, setError] = useState('');
 
@@ -30,7 +30,7 @@ export function TrackView({ orderId, code }: { orderId: string; code: string }) 
     let stop = false;
     async function load() {
       try {
-        const r = await fetch(`/api/store/orders/${encodeURIComponent(orderId)}/track?code=${encodeURIComponent(code)}`, { cache: 'no-store' });
+        const r = await fetch(href(`/api/store/orders/${encodeURIComponent(orderId)}/track?code=${encodeURIComponent(code)}`), { cache: 'no-store' });
         const body = await r.json();
         if (stop) return;
         if (!r.ok) setError(body.message ?? 'Order not found');
@@ -47,14 +47,14 @@ export function TrackView({ orderId, code }: { orderId: string; code: string }) 
       stop = true;
       clearInterval(t);
     };
-  }, [orderId, code]);
+  }, [orderId, code, href]);
 
   if (error) {
     return (
       <div className="container empty">
         <h1>We couldn&apos;t find that order</h1>
         <p className="muted">Check the link from your confirmation message.</p>
-        <Link href="/" className="btn">Back to the store</Link>
+        <Link href={href('/')} className="btn">Back to the store</Link>
       </div>
     );
   }
@@ -104,7 +104,7 @@ export function TrackView({ orderId, code }: { orderId: string; code: string }) 
         </div>
       </div>
       {order.branch?.phone && <p className="small" style={{ marginTop: 16 }}>Questions? Call <a href={`tel:${order.branch.phone}`}>{order.branch.phone}</a></p>}
-      <Link href="/menu" className="btn btn-outline" style={{ marginTop: 8 }}>Order something else</Link>
+      <Link href={catalogHref} className="btn btn-outline" style={{ marginTop: 8 }}>Shop more</Link>
     </div>
   );
 }

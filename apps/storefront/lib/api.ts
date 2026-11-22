@@ -13,7 +13,17 @@ export class ApiError extends Error {
 /** The store's hostname, as the visitor typed it (behind a proxy, x-forwarded-host). */
 export async function storeHost() {
   const h = await headers();
+  // Set by middleware for /s/<slug> URLs (incoming copies are stripped there).
+  const forced = h.get('x-store-host');
+  if (forced) return forced.toLowerCase();
   return (h.get('x-forwarded-host') ?? h.get('host') ?? '').split(',')[0].trim().toLowerCase();
+}
+
+/** "" for host-based stores, "/s/<slug>" for path-based ones. Prefix every internal link with it. */
+export async function storeBase() {
+  const h = await headers();
+  const b = h.get('x-store-base') ?? '';
+  return /^\/s\/[a-z0-9-]+$/.test(b) ? b : '';
 }
 
 /**
@@ -48,7 +58,8 @@ export async function storeApi<T>(
 
 export async function getStore(): Promise<StoreData | null> {
   try {
-    return await storeApi<StoreData>('/config');
+    const data = await storeApi<StoreData>('/config');
+    return { ...data, base: await storeBase() };
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null;
     throw err;

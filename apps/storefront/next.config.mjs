@@ -10,17 +10,8 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   async headers() {
-    return [
-      { source: '/((?!preview).*)', headers: [...securityHeaders, { key: 'X-Frame-Options', value: 'SAMEORIGIN' }] },
-      // The builder preview is embedded by the Tenant Admin app.
-      {
-        source: '/preview',
-        headers: [
-          ...securityHeaders,
-          { key: 'Content-Security-Policy', value: `frame-ancestors 'self' ${process.env.ADMIN_ORIGIN ?? 'http://localhost:3001'}` },
-        ],
-      },
-    ];
+    // frame-ancestors is set per request in middleware.ts (the preview may be embedded by the admin).
+    return [{ source: '/:path*', headers: securityHeaders }];
   },
 };
 

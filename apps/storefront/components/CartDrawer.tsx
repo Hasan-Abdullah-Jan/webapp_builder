@@ -7,7 +7,7 @@ import { initials, money } from '@/lib/format';
 import { useStore } from './StoreProvider';
 
 export function CartDrawer() {
-  const { cart, setQty, subtotal, openDrawer, data, catalogHref, v } = useStore();
+  const { cart, setQty, subtotal, openDrawer, data, catalogHref, v, href } = useStore();
   const router = useRouter();
   const cur = data.store.currency;
   const freeAbove = Number(data.config.settings?.freeDeliveryAbove ?? 0);
@@ -74,7 +74,7 @@ export function CartDrawer() {
               <strong>{money(subtotal, cur)}</strong>
             </div>
             <p className="muted small" style={{ marginTop: 0 }}>Delivery, discounts and taxes are calculated at checkout.</p>
-            <button className="btn btn-block" disabled={!data.store.acceptingOrders || data.preview} onClick={() => { openDrawer(false); router.push('/checkout'); }}>
+            <button className="btn btn-block" disabled={!data.store.acceptingOrders || data.preview} onClick={() => { openDrawer(false); router.push(href('/checkout')); }}>
               Checkout
             </button>
             <button className="btn btn-ghost btn-block" style={{ marginTop: 6 }} onClick={() => openDrawer(false)}>Continue shopping</button>

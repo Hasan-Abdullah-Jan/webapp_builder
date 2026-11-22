@@ -9,7 +9,7 @@ import { CartDrawer } from './CartDrawer';
 import { money } from '@/lib/format';
 
 export function Header() {
-  const { data, count, subtotal, openDrawer, drawerOpen, v, catalogHref } = useStore();
+  const { data, count, subtotal, openDrawer, drawerOpen, v, catalogHref, href } = useStore();
   const router = useRouter();
   const [searching, setSearching] = useState(false);
   const [q, setQ] = useState('');
@@ -25,7 +25,7 @@ export function Header() {
   }
 
   const brand = (
-    <Link href="/" className="brand" aria-label={`${data.store.name} home`}>
+    <Link href={href('/') } className="brand" aria-label={`${data.store.name} home`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {logo ? <img src={logo} alt={data.store.name} /> : <span>{data.store.name}</span>}
     </Link>
@@ -52,7 +52,7 @@ export function Header() {
               ) : (
                 <>
                   {brand}
-                  <nav aria-label="Main"><Link href="/">Home</Link><Link href={catalogHref}>{v.catalog}</Link></nav>
+                  <nav aria-label="Main"><Link href={href('/')}>Home</Link><Link href={catalogHref}>{v.catalog}</Link></nav>
                   <span className="spacer" />
                 </>
               )}

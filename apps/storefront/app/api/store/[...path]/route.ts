@@ -19,7 +19,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   const rule = ALLOWED.find((r) => r.method === req.method && r.re.test(joined));
   if (!rule) return NextResponse.json({ code: 'NOT_FOUND', message: 'Not found' }, { status: 404 });
 
-  const host = (req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '').split(',')[0].trim().toLowerCase();
+  const host = (req.headers.get('x-store-host') ?? req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '').split(',')[0].trim().toLowerCase();
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Store-Host': host };
   const fwd = req.headers.get('x-forwarded-for');
   if (fwd) headers['X-Forwarded-For'] = fwd;

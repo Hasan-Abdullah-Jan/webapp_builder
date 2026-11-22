@@ -112,7 +112,7 @@ export function ProductOptions({ item, onAdded, inline }: { item: MenuItem; onAd
 
 export function ProductModal({ item, onClose }: { item: MenuItem; onClose: () => void }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const { data } = useStore();
+  const { data, href } = useStore();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -127,7 +127,7 @@ export function ProductModal({ item, onClose }: { item: MenuItem; onClose: () =>
   }, [onClose]);
 
   async function share() {
-    const url = `${window.location.origin}/p/${item.slug}`;
+    const url = `${window.location.origin}${href(`/p/${item.slug}`)}`;
     if (navigator.share) await navigator.share({ title: item.name, url }).catch(() => {});
     else await navigator.clipboard.writeText(url).catch(() => {});
   }
@@ -153,7 +153,7 @@ export function ProductModal({ item, onClose }: { item: MenuItem; onClose: () =>
           <p className="price" style={{ fontSize: 18 }}>
             {item.variants?.length ? `From ${money(Math.min(...item.variants.map((x) => x.price)), data.store.currency)}` : money(item.price, data.store.currency)}
           </p>
-          {!data.preview && <Link href={`/p/${item.slug}`} className="small muted">View full details</Link>}
+          {!data.preview && <Link href={href(`/p/${item.slug}`)} className="small muted">View full details</Link>}
         </div>
         <ProductOptions item={item} onAdded={onClose} />
       </div>

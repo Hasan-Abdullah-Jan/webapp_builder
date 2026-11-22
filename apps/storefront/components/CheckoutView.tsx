@@ -17,7 +17,7 @@ interface Quote {
 const SAVED = 'qs-customer';
 
 export function CheckoutView() {
-  const { cart, data, setMode, setBranch, clear, feature, v, catalogHref } = useStore();
+  const { cart, data, setMode, setBranch, clear, feature, v, catalogHref, href } = useStore();
   const router = useRouter();
   const cur = data.store.currency;
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -53,7 +53,7 @@ export function CheckoutView() {
     if (!cart.lines.length) return;
     const ctrl = new AbortController();
     setQuoteError('');
-    fetch('/api/store/cart/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payloadKey, signal: ctrl.signal })
+    fetch(href('/api/store/cart/quote'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payloadKey, signal: ctrl.signal })
       .then(async (r) => {
         const body = await r.json();
         if (!r.ok) {
@@ -64,7 +64,7 @@ export function CheckoutView() {
       .catch((e) => e.name !== 'AbortError' && setQuoteError('Network error, please retry'));
     idemKey.current = ''; // cart changed → new order attempt
     return () => ctrl.abort();
-  }, [payloadKey, cart.lines.length]);
+  }, [payloadKey, cart.lines.length, href]);
 
   async function placeOrder(e: React.FormEvent) {
     e.preventDefault();
@@ -72,7 +72,7 @@ export function CheckoutView() {
     if (!idemKey.current) idemKey.current = crypto.randomUUID().replace(/-/g, '');
     setBusy(true);
     try {
-      const res = await fetch('/api/store/orders', {
+      const res = await fetch(href('/api/store/orders'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idemKey.current },
         body: JSON.stringify({
@@ -98,7 +98,7 @@ export function CheckoutView() {
         /* ignore */
       }
       clear();
-      router.push(`/order/${body.orderId}?c=${encodeURIComponent(body.trackingCode)}`);
+      router.push(href(`/order/${body.orderId}?c=${encodeURIComponent(body.trackingCode)}`));
     } catch {
       setSubmitError('Network error. Your order was not placed — please try again.');
     } finally {
