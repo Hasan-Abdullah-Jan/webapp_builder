@@ -237,7 +237,7 @@ function CatalogInner() {
                         </th>
                       )}
                       {([['name', v.item], ['category', v.category], ['price', 'Price'], ['stock', 'Stock']] as const).map(([k, label]) => (
-                        <th key={k} aria-sort={sort.key === k ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+                        <th key={k} className={k === 'category' || k === 'stock' ? 'hide-xs' : undefined} aria-sort={sort.key === k ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
                           <button type="button" className="th-sort" onClick={() => setSort((x) => ({ key: k, dir: x.key === k ? (x.dir === 1 ? -1 : 1) : 1 }))}>
                             {label}{sort.key === k ? (sort.dir === 1 ? <ChevronUp size={13} /> : <ChevronDown size={13} />) : <ChevronsUpDown size={13} style={{ opacity: .4 }} />}
                           </button>
@@ -272,9 +272,9 @@ function CatalogInner() {
                             </div>
                           </div>
                         </td>
-                        <td className="muted">{p.categoryId ? catName.get(p.categoryId) : '—'}</td>
+                        <td className="muted hide-xs">{p.categoryId ? catName.get(p.categoryId) : '—'}</td>
                         <td className="nowrap">{priceLabel(p)}</td>
-                        <td>{typeof p.stock === 'number' ? (p.stock === 0 ? <span className="pill danger">Sold out</span> : p.stock <= 5 ? <span className="pill warn">{p.stock} left</span> : p.stock) : <span className="faint">Not tracked</span>}</td>
+                        <td className="hide-xs">{typeof p.stock === 'number' ? (p.stock === 0 ? <span className="pill danger">Sold out</span> : p.stock <= 5 ? <span className="pill warn">{p.stock} left</span> : p.stock) : <span className="faint">Not tracked</span>}</td>
                         <td onClick={(e) => e.stopPropagation()}>
                           <Switch label={`${p.name} visible`} checked={p.active} disabled={!writable} onChange={(val) => quickToggle(p, val)} />
                         </td>

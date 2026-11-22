@@ -255,7 +255,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .hero h1 { letter-spacing: -0.02em; }
 
 /* ---- v3: a11y + mobile polish ---- */
-.sf-dialog { position: relative; z-index: 50; }
+.sf-dialog { position: fixed; inset: 0; z-index: 50; }
 .price, .totals, .chip-price, .line strong { font-variant-numeric: tabular-nums; }
 @media (max-width: 899px) {
   /* Product page: keep "Add to cart" reachable while scrolling. */

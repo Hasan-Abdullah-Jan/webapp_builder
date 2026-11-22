@@ -74,7 +74,7 @@ export function Drawer({ title, onClose, children, actions, footer }: {
   return (
     <Dialog open onClose={onClose} className="dlg-root">
       <DialogBackdrop className="dlg-backdrop" />
-      <div className="dlg-wrap right">
+      <div className="dlg-wrap dlg-right">
         <DialogPanel className="drawer">
           <header>
             <DialogTitle as="h2" style={{ margin: 0 }}>{title}</DialogTitle>
