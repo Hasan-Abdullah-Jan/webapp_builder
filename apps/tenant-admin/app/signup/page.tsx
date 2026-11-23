@@ -79,7 +79,7 @@ export default function SignupPage() {
   return (
     <main className="auth">
       <div className="card wizard stack" style={{ maxWidth: 760 }}>
-        <div className="brand"><span className="logo-mark"><Store size={16} /></span> QuickStore</div>
+        <div className="brand"><span className="logo-mark"><Store size={16} /></span> WebApp Builder</div>
         <div className="steps" aria-hidden>{[0, 1, 2].map((i) => <div key={i} className={i <= step ? 'on' : ''} />)}</div>
         {error && <div className="alert" role="alert">{error}</div>}
 
@@ -96,7 +96,7 @@ export default function SignupPage() {
               <div className="input-group">
                 <input id="slug" className="input" required minLength={3} maxLength={40} value={slug}
                   onChange={(e) => { setSlugTouched(true); setSlug(slugify(e.target.value)); }} />
-                <span className="addon">.quickstore.pk</span>
+                <span className="addon">store address</span>
               </div>
               {slug.length >= 3 && slugOk !== null && (
                 <span className="hint" style={{ color: slugOk ? 'var(--ok)' : 'var(--danger)' }}>

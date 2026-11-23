@@ -29,7 +29,7 @@ export default function LoginPage() {
   return (
     <main className="auth">
       <form className="card stack" onSubmit={submit}>
-        <div className="brand"><span className="logo-mark"><Store size={16} /></span> QuickStore</div>
+        <div className="brand"><span className="logo-mark"><Store size={16} /></span> WebApp Builder</div>
         <h1>Welcome back</h1>
         <p className="muted" style={{ marginTop: -4 }}>Log in to manage your store.</p>
         {error && <div className="alert" role="alert">{error}</div>}
@@ -38,7 +38,7 @@ export default function LoginPage() {
           <div className="input-group">
             <input id="store" className="input" required autoComplete="organization" placeholder="pizzapoint" value={form.store}
               onChange={(e) => setForm({ ...form, store: e.target.value })} />
-            <span className="addon">.quickstore.pk</span>
+            <span className="addon">/s/your-store</span>
           </div>
         </div>
         <div className="field">

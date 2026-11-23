@@ -11,7 +11,7 @@ export function Footer({ data }: { data: StoreData }) {
         <div className="container row">
           <span>© {year} {data.store.name}</span>
           <span className="spacer" />
-          <span className="powered">Powered by QuickStore</span>
+          <span className="powered">Built with WebApp Builder</span>
         </div>
       </footer>
     );
@@ -51,7 +51,7 @@ export function Footer({ data }: { data: StoreData }) {
             </div>
           )}
         </div>
-        <div className="powered">© {year} {data.store.name} · Powered by QuickStore</div>
+        <div className="powered">© {year} {data.store.name} · Built with WebApp Builder</div>
       </div>
     </footer>
   );

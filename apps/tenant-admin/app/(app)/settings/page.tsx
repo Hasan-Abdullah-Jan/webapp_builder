@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { api } from '@/lib/client';
+import { api, storeUrl } from '@/lib/client';
 import { useMe } from '@/components/Shell';
 import { ErrorBox, Field, useToast } from '@/components/ui';
 
@@ -41,7 +41,7 @@ export default function SettingsPage() {
           </Field>
         </div>
         <Field label="Website address" htmlFor="slug" hint="Contact support to change your address or connect your own domain.">
-          <input id="slug" className="input" disabled value={`${me.tenant.slug}.quickstore.pk`} />
+          <input id="slug" className="input" disabled value={storeUrl(me.tenant.slug)} />
         </Field>
         <div className="row"><span className="spacer" /><button className="btn" onClick={save}>Save settings</button></div>
       </div>

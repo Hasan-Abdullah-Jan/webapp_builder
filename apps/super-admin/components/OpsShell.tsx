@@ -28,7 +28,7 @@ export function OpsShell({ children }: { children: ReactNode }) {
     <RoleCtx.Provider value={role}>
       <div className="shell">
         <aside className="sidebar">
-          <div className="logo"><ShieldCheck size={18} /> Quick<span>Store</span> Ops</div>
+          <div className="logo"><ShieldCheck size={18} /> WebApp<span>Builder</span> Ops</div>
           {NAV.filter((n) => !n.owner || role === 'owner').map((n) => (
             <Link key={n.href} href={n.href} className={(n.href === '/' ? path === '/' : path.startsWith(n.href)) ? 'active' : ''}>
               <n.icon size={17} />{n.label}

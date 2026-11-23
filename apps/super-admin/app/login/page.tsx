@@ -21,7 +21,7 @@ export default function OpsLogin() {
   return (
     <main className="auth">
       <form className="card stack" onSubmit={submit}>
-        <div className="brand">Quick<span>Store</span> Ops</div>
+        <div className="brand">WebApp<span>Builder</span> Ops</div>
         <h1>Platform sign-in</h1>
         <p className="muted small" style={{ marginTop: 0 }}>Restricted to platform staff. All actions are audit-logged.</p>
         {error && <div className="alert" role="alert">{error}</div>}

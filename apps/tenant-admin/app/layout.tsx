@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
 
-export const metadata: Metadata = { title: { default: 'QuickStore Admin', template: '%s · QuickStore Admin' }, robots: { index: false } };
+export const metadata: Metadata = { title: { default: 'WebApp Builder', template: '%s · WebApp Builder' }, robots: { index: false } };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
